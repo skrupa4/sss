@@ -16,6 +16,9 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   const [currentProfile, setCurrentProfile] = useState(user.username);
   const isOwnProfile = currentProfile === user.username;
 
+  // Добавляем флаг загрузки, чтобы управлять экраном ожидания
+  const [isLoading, setIsLoading] = useState(true);
+
   const [profileData, setProfileData] = useState({
     username: '',
     handle: '',
@@ -29,10 +32,15 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
 
   const loadData = useCallback(async () => {
     try {
+      setIsLoading(true); // Включаем загрузку перед запросами
+
       const userRes = await fetch(`http://localhost:5000/api/users/${currentProfile}?viewer=${user.username}`);
       if (userRes.ok) {
         const userData = await userRes.json();
         setProfileData(prev => ({ ...prev, ...userData }));
+      } else {
+        // Если база пустая и юзер не найден, подставляем дефолт, чтобы страница не висла
+        setProfileData(prev => ({ ...prev, username: currentProfile, handle: currentProfile }));
       }
 
       let postsUrl = '';
@@ -50,8 +58,12 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         setPosts(Array.isArray(postsData) ? postsData : []);
       }
     } catch (err) {
-      console.error("Ошибка загрузки:", err);
+      console.error("Ошибка загрузки данных с бэкенда:", err);
       setPosts([]);
+      // На случай пустой БД даем дефолтное имя, чтобы рендер пошел дальше
+      setProfileData(prev => ({ ...prev, username: currentProfile, handle: currentProfile }));
+    } finally {
+      setIsLoading(false); // ЖЕЛЕЗОБЕТОННО ВЫКЛЮЧАЕТ ЗАГРУЗКУ ПРИ ЛЮБОМ РАСКЛАДЕ
     }
   }, [currentProfile, view, activeTab, user.username]);
 
@@ -234,7 +246,8 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  if (!profileData.username && view === 'profile') {
+  // Проверяем состояние загрузки через флаг isLoading
+  if (isLoading && view === 'profile') {
     return <div className="min-h-screen bg-[#080808] flex items-center justify-center text-gray-500 font-black uppercase text-xs tracking-widest">Загрузка...</div>;
   }
 
@@ -467,7 +480,6 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
               </div>
             ))}
 
-            {/* Пустое состояние */}
             {posts.length === 0 && (
               <div className="text-center py-20 text-gray-700 font-black uppercase text-[10px] tracking-[0.3em] opacity-40">
                 {activeTab === 'reposts' 

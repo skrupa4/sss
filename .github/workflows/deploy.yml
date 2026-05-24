@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: 'main' # или 'master', смотря какая у тебя главная ветка
+    branches: 'main'
 
 permissions:
   contents: read
@@ -19,24 +19,26 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./ # Если у тебя package.json лежит прямо в корне, оставь так. Если внутри папки client, напиши ./client
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Node
-        uses: actions/io/node@v4
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+          cache: 'npm'
+          cache-dependency-path: './client/package-lock.json' # Указываем где лежит замок пакетов
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          cd client
+          npm ci
 
       - name: Build
-        run: npm run build
+        run: |
+          cd client
+          npm run build
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -44,7 +46,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist' # папка, куда Vite собирает билд (если package.json в подпапке, то './client/dist')
+          path: './client/dist' # Папка dist внутри папки client
 
       - name: Deploy to GitHub Pages
         id: deployment

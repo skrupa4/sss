@@ -1,0 +1,13 @@
+node_modules/
+.env
+dist/
+build/
+.next/
+
+# Папка с данными твоей БД (если она у тебя создается в корне проекта)
+data/
+mongodb_data/
+postgres_data/
+
+# Логи
+*.log

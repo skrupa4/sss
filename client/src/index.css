@@ -1,0 +1,6 @@
+@import "tailwindcss";
+/* Принудительно ставим черный фон всему сайту */
+body {
+  margin: 0;
+  background-color: #0d0d0d;
+}

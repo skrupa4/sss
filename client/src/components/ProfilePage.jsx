@@ -49,14 +49,15 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   const [shouldRenderLoader, setShouldRenderLoader] = useState(true);
   const [animateContent, setAnimateContent] = useState(false);
 
-  const [profileData, setProfileData] = useState({
+const [profileData, setProfileData] = useState({
     username: '',
     handle: '',
     followers: 0,
     following: 0,
     memberSince: 'Май 2026',
     clan: 'SSS OWNER',
-    isSubscribed: true
+    isSubscribed: false,
+    is_verified: false
   });
 
   // СОСТОЯНИЯ ДЛЯ ЛИЧНЫХ СООБЩЕНИЙ
@@ -700,13 +701,12 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                         <input className="edit-input text-gray-400" value={profileData.handle} onChange={(e) => setProfileData({...profileData, handle: e.target.value})} placeholder="Хэндл" />
                       </div>
                     ) : (
-                      <div>
-                        <div className="flex items-center justify-center sm:justify-start gap-2">
-                          <h1 className={`text-xl md:text-2xl font-black tracking-tighter ${hasPremium ? 'premium-nick' : ''}`}>{profileData.username}</h1>
-                          <div className="w-4 h-4 bg-[#ff2a5f] rounded-full flex items-center justify-center text-[8px] text-white font-bold shadow-[0_0_10px_rgba(255,42,95,0.4)] flex-shrink-0">✓</div>
-                        </div>
-                        <p className="text-gray-500 font-bold text-xs md:text-sm">@{profileData.handle}</p>
-                      </div>
+                     <div className="flex items-center justify-center sm:justify-start gap-2">
+  <h1 className={`text-xl md:text-2xl font-black tracking-tighter ${hasPremium ? 'premium-nick' : ''}`}>{profileData.username}</h1>
+  {profileData.is_verified && (
+    <div className="w-4 h-4 bg-[#ff2a5f] rounded-full flex items-center justify-center text-[8px] text-white font-bold shadow-[0_0_10px_rgba(255,42,95,0.4)] flex-shrink-0" title="Верифицированный аккаунт">✓</div>
+  )}
+</div>
                     )}
                     
                     <div className="flex justify-center sm:justify-start gap-6 mt-3">

@@ -271,11 +271,12 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         .interact-btn.active { color: #ff2a5f; }
         .interact-btn span { font-size: 11px; font-weight: 800; text-transform: uppercase; }
         .comment-input { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 8px 12px; width: 100%; outline: none; color: white; font-size: 13px; }
+        .btn-fixed { flex-shrink: 0 !important; white-space: nowrap !important; }
       `}</style>
 
       <div className="w-full max-w-[1100px] flex flex-col lg:flex-row gap-6 justify-center">
         
-        {/* Адаптивный Сайдбар: снизу на мобилках, слева на десктопе */}
+        {/* Адаптивный Сайдбар */}
         <aside className="fixed bottom-0 left-0 w-full lg:w-[240px] lg:static flex flex-row lg:flex-col justify-between lg:justify-start gap-5 glass-card p-3 sm:p-4 lg:p-5 rounded-t-[24px] lg:rounded-[28px] h-fit lg:sticky lg:top-8 shadow-2xl z-[999] border-t border-white/10 lg:border-none">
           <div className="hidden lg:flex justify-center py-4 cursor-pointer" onClick={() => setView('feed')}>
             <span className="sss-logo text-4xl font-black italic tracking-tighter select-none">SSS</span>
@@ -347,41 +348,37 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                   </div>
 
                   {/* Кнопки действий */}
-                  <div className="flex gap-2 w-full md:w-auto justify-center items-center">
+                  <div className="flex gap-2 w-full md:w-auto justify-center items-stretch md:items-center">
                     {isOwnProfile ? (
-                      <>
-                        {/* Адаптивная Кнопка Редактировать / Сохранить */}
-                        <button 
-                          onClick={handleSaveProfile} 
-                          className={`flex-1 md:flex-none px-4 md:px-5 h-11 md:h-auto rounded-xl text-[10px] font-black uppercase transition-all border flex items-center justify-center gap-2
-                            ${isEditing 
-                              ? 'bg-[#ff2a5f] border-[#ff2a5f] text-white shadow-lg shadow-[#ff2a5f]/20' 
-                              : 'bg-white/5 border-white/10 text-white hover:bg-white hover:text-black'
-                            }`}
-                        >
-                          {/* Иконка видна всегда на мобилках, на десктопе опционально */}
-                          {isEditing ? (
-                            <svg className="w-4 h-4 md:w-3.5 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          ) : (
-                            <svg className="w-4 h-4 md:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          )}
-                          <span className={`${isEditing ? 'inline' : 'hidden md:inline'}`}>
-                            {isEditing ? 'Сохранить' : 'Редактировать'}
-                          </span>
-                        </button>
-                      </>
+                      <button 
+                        onClick={handleSaveProfile} 
+                        className={`btn-fixed flex-1 md:flex-none px-5 py-2.5 h-11 md:h-11 rounded-xl text-[10px] font-black uppercase transition-all border flex items-center justify-center gap-2
+                          ${isEditing 
+                            ? 'bg-[#ff2a5f] border-[#ff2a5f] text-white shadow-lg shadow-[#ff2a5f]/20' 
+                            : 'bg-white/5 border-white/10 text-white hover:bg-white hover:text-black'
+                          }`}
+                      >
+                        {isEditing ? (
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        )}
+                        <span>
+                          {isEditing ? 'Сохранить' : 'Редактировать'}
+                        </span>
+                      </button>
                     ) : (
                       <button 
                         onClick={handleFollow} 
-                        className={`flex-1 md:flex-none px-5 py-2.5 h-11 md:h-auto rounded-xl text-[10px] font-black uppercase transition-all cursor-pointer border ${profileData.isSubscribed ? 'bg-white/5 border-white/10 text-white' : 'bg-[#ff2a5f] border-[#ff2a5f] text-white shadow-lg shadow-[#ff2a5f]/20 hover:scale-105 active:scale-95'}`}>
+                        className={`btn-fixed flex-1 md:flex-none px-5 py-2.5 h-11 rounded-xl text-[10px] font-black uppercase transition-all cursor-pointer border ${profileData.isSubscribed ? 'bg-white/5 border-white/10 text-white' : 'bg-[#ff2a5f] border-[#ff2a5f] text-white shadow-lg shadow-[#ff2a5f]/20 hover:scale-105 active:scale-95'}`}>
                         {profileData.isSubscribed ? 'Отписаться' : 'Подписаться'}
                       </button>
                     )}
-                    <button className="flex-1 md:flex-none bg-gradient-to-r from-[#ff2a5f] to-[#7e22ce] text-white px-4 md:px-5 py-2.5 h-11 md:h-auto rounded-xl text-[10px] font-black uppercase shadow-lg shadow-[#ff2a5f]/20 text-center">Premium</button>
+                    <button className="btn-fixed flex-1 md:flex-none bg-gradient-to-r from-[#ff2a5f] to-[#7e22ce] text-white px-5 py-2.5 h-11 rounded-xl text-[10px] font-black uppercase shadow-lg shadow-[#ff2a5f]/20 text-center flex items-center justify-center">Premium</button>
                   </div>
                 </div>
 
@@ -472,7 +469,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                 </div>
                 <p className="pl-1 text-sm md:text-[15px] text-gray-300 leading-normal mb-5">{post.content}</p>
                 
-                {/* Кнопки взаимодействий (Лайк, Коммент, Репост) */}
+                {/* Кнопки взаимодействий */}
                 <div className="flex items-center justify-between sm:justify-start gap-4 sm:gap-8 pt-3 border-t border-white/5">
                   <button className={`interact-btn ${post.likes > 0 ? 'active' : ''}`} onClick={() => handleLike(post.id)}>
                     <svg fill={post.likes > 0 ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>

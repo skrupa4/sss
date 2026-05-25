@@ -23,7 +23,7 @@ const getAvatarGradient = (username) => {
 const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   const hasPremium = true;
 
-  const [view, setView] = useState('profile'); // 'profile' | 'feed' | 'messages'
+  const [view, setView] = useState('profile'); // 'profile' | 'feed' | 'messages' | 'notifications'
   const [postText, setPostText] = useState('');
   const [posts, setPosts] = useState([]);
   const [activeTab, setActiveTab] = useState('posts');
@@ -149,7 +149,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         if (activeChat) {
           await loadMessages(activeChat.username);
         }
-      } else {
+      } else if (view !== 'notifications') {
         const userRes = await fetch(`${API_BASE_URL}/api/users/${currentProfile}?viewer=${user.username}`);
         if (userRes.ok) {
           const userData = await userRes.json();
@@ -434,10 +434,34 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
          
         .animated-content { opacity: 0; transform: translateY(10px); transition: opacity 0.4s cubic-bezier(0.215, 0.610, 0.355, 1), transform 0.4s cubic-bezier(0.215, 0.610, 0.355, 1); }
         .animated-content.visible { opacity: 1; transform: translateY(0); }
-         
-        /* Киберпанковый неоновый ромб вместо круга */
-        .neon-rhombus { width: 32px; height: 32px; background: #ff2a5f; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); animation: rhomb-spin 1.2s cubic-bezier(0.77, 0, 0.175, 1) infinite; filter: drop-shadow(0 0 12px #ff2a5f); box-shadow: 0 0 20px #ff2a5f, 0 0 40px #7e22ce; }
-        @keyframes rhomb-spin { 0% { transform: rotate(0deg) scale(1); opacity: 1; } 50% { transform: rotate(180deg) scale(0.75); opacity: 0.6; background: #7e22ce; } 100% { transform: rotate(360deg) scale(1); opacity: 1; } }
+
+        /* =========================================================================
+           ПОМЕТКА: ЭТОТ ДИЗАЙН ЗАГРУЗКИ (РОМБ) НЕЛЬЗЯ ТРОГАТЬ И МЕНЯТЬ В БУДУЩЕМ! 
+           Сделано строго по концепту: крутящийся ромб, у которого светится и 
+           меняется грань в процессе вращения.
+           ========================================================================= */
+        .glowing-rhombus {
+          width: 48px;
+          height: 48px;
+          border: 2px solid rgba(255, 255, 255, 0.1);
+          transform: rotate(45deg);
+          position: relative;
+          animation: spin-rhombus 1.8s linear infinite;
+        }
+        .glowing-rhombus::after {
+          content: '';
+          position: absolute;
+          top: -2px; left: -2px; right: -2px; bottom: -2px;
+          border: 2px solid transparent;
+          border-top: 3px solid #b347ff; /* Фиолетовое свечение одной грани */
+          box-shadow: inset 0 8px 15px -4px rgba(179, 71, 255, 0.5), 0 -8px 20px -4px rgba(179, 71, 255, 0.8);
+          border-radius: 1px;
+        }
+        @keyframes spin-rhombus {
+          0% { transform: rotate(45deg); }
+          100% { transform: rotate(405deg); }
+        }
+        /* ========================================================================= */
 
         /* Кастомный скроллбар для зоны сообщений */
         .chat-scroll::-webkit-scrollbar { width: 4px; }
@@ -446,13 +470,16 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         .chat-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 42, 95, 0.3); }
       `}</style>
 
-      {/* ЭКРАН ЗАГРУЗКИ С КРАСИВЫМ РОМБИКОМ */}
+      {/* =========================================================================
+          ПОМЕТКА: ЭТОТ БЛОК ЗАГРУЗКИ НЕЛЬЗЯ ТРОГАТЬ И МЕНЯТЬ В БУДУЩЕМ!
+          ========================================================================= */}
       {shouldRenderLoader && (
-        <div className={`fixed inset-0 bg-[#080808] z-[9999] flex flex-col gap-5 items-center justify-center fade-loader ${!isLoading ? 'hidden' : ''}`}>
-          <div className="neon-rhombus"></div>
-          <div className="text-gray-500 font-black uppercase text-[9px] tracking-[0.3em] sss-logo mt-1">Загрузка протокола...</div>
+        <div className={`fixed inset-0 bg-[#080808] z-[9999] flex flex-col gap-8 items-center justify-center fade-loader ${!isLoading ? 'hidden' : ''}`}>
+          <div className="glowing-rhombus"></div>
+          <div className="text-gray-500 font-black uppercase text-[10px] tracking-[0.3em] mt-1">Загрузка...</div>
         </div>
       )}
+      {/* ========================================================================= */}
 
       <div className="w-full max-w-[1100px] flex flex-col lg:flex-row gap-6 justify-center">
          
@@ -473,6 +500,14 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
               <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Сообщения</span>
+            </div>
+
+            {/* ВКЛАДКА УВЕДОМЛЕНИЙ В САЙДБАРЕ */}
+            <div onClick={() => handleViewChange('notifications')} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'notifications' ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
+              <svg className={`w-5 h-5 ${view === 'notifications' ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+              </svg>
+              <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Уведомления</span>
             </div>
 
             <div onClick={() => handleViewChange('profile', user.username)} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'profile' && isOwnProfile ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
@@ -596,6 +631,26 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
             </div>
           )}
 
+          {/* РЕНДЕР СТРАНИЦЫ УВЕДОМЛЕНИЙ */}
+          {view === 'notifications' && (
+            <div className="glass-card rounded-2xl md:rounded-[32px] overflow-hidden shadow-2xl border-white/10 min-h-[50vh] flex flex-col">
+              <div className="p-6 border-b border-white/5 text-center sm:text-left">
+                <h1 className="text-xl md:text-2xl font-black tracking-tight uppercase italic sss-logo">Уведомления</h1>
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none opacity-60 gap-4">
+                <svg className="w-12 h-12 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                </svg>
+                <div className="space-y-1">
+                  <p className="text-[13px] font-black uppercase tracking-widest text-white/90">Пока пусто</p>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider max-w-[250px] mx-auto">
+                    Здесь будут уведомления после подключения БД и бэкенда
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {view === 'profile' && (
             <div className="glass-card rounded-2xl md:rounded-[36px] overflow-hidden shadow-2xl border-white/10">
               <div className="h-28 md:h-40 bg-gradient-to-br from-[#111] via-[#1a1a1a] to-[#080808]"></div>
@@ -666,8 +721,8 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
               <div className="px-2 mb-2"><h1 className="text-2xl md:text-3xl font-black tracking-tight uppercase italic sss-logo text-center sm:text-left">Global Stream</h1></div>
           )}
 
-          {/* Создание нового поста (Скрыто в режиме сообщений) */}
-          {view !== 'messages' && (view === 'feed' || (isOwnProfile && activeTab === 'posts')) && (
+          {/* Создание нового поста (Скрыто в режиме сообщений и уведомлений) */}
+          {view !== 'messages' && view !== 'notifications' && (view === 'feed' || (isOwnProfile && activeTab === 'posts')) && (
             <div className="glass-card rounded-2xl md:rounded-[28px] p-4 md:p-6 shadow-xl">
               <div className="flex gap-3 md:gap-4">
                 <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getAvatarGradient(user.username)} flex items-center justify-center text-white font-black text-lg uppercase select-none flex-shrink-0`}>
@@ -687,7 +742,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
           )}
 
           {/* Лента Постов / Заглушки для пустых табов */}
-          {view !== 'messages' && (
+          {view !== 'messages' && view !== 'notifications' && (
             <div className="flex flex-col gap-4 mb-16">
               {posts.length > 0 ? (
                 posts.map((post) => (

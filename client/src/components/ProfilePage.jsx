@@ -799,13 +799,15 @@ const [profileData, setProfileData] = useState({
                   <div key={post.id} className="glass-card rounded-2xl md:rounded-[28px] p-4 md:p-6 transition-all group hover:border-white/10">
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex items-center gap-3">
-                        <div onClick={() => handleViewChange('profile', post.username)} className={`w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br ${getAvatarGradient(post.username)} flex items-center justify-center text-white font-black text-md uppercase select-none cursor-pointer hover:scale-105 transition-transform flex-shrink-0`}>
-                          {post.username ? post.username.charAt(0) : '?'}
-                        </div>
                         <div>
-                          <p onClick={() => handleViewChange('profile', post.username)} className="font-black text-xs md:text-[13px] uppercase tracking-tight text-white/90 cursor-pointer hover:text-[#ff2a5f] transition-colors">{post.username}</p>
-                          <p className="text-[9px] text-gray-600 font-black uppercase mt-0.5">{post.created_at ? new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}</p>
-                        </div>
+  <div className="flex items-center gap-1.5">
+    <p onClick={() => handleViewChange('profile', post.username)} className="font-black text-xs md:text-[13px] uppercase tracking-tight text-white/90 cursor-pointer hover:text-[#ff2a5f] transition-colors">{post.username}</p>
+    {post.is_verified && (
+      <span className="w-3.5 h-3.5 bg-[#ff2a5f] rounded-full flex items-center justify-center text-[7px] text-white font-bold flex-shrink-0">✓</span>
+    )}
+  </div>
+  <p className="text-[9px] text-gray-600 font-black uppercase mt-0.5">{post.created_at ? new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}</p>
+</div>
                       </div>
                       {(post.username === user.username || (isOwnProfile && activeTab === 'reposts')) && (
                         <button onClick={() => handleDelete(post.id)} className="lg:opacity-0 lg:group-hover:opacity-100 p-2 text-gray-700 hover:text-red-500 transition-all cursor-pointer">

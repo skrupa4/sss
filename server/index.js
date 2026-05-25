@@ -98,7 +98,7 @@ const initDB = async () => {
 
     console.log('✅ База данных синхронизирована (все таблицы созданы)');
   } catch (err) {
-    console.error('❌ Ошибка инициализации БД:', err.message);
+    console.error('❌ Ошибка инициализации БД:', err);
   }
 };
 

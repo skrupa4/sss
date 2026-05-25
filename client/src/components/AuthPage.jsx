@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 
+// Твой рабочий бэкенд на Render
+const API_BASE_URL = 'https://sss-backend-haev.onrender.com';
+
 const AuthPage = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ username: '', email: '', password: '' });
@@ -9,7 +12,8 @@ const AuthPage = ({ onLogin }) => {
     const endpoint = isLogin ? '/api/login' : '/api/register';
     
     try {
-      const response = await fetch(`http://localhost:5000${endpoint}`, {
+      // Подключаем к актуальному адресу на Render
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

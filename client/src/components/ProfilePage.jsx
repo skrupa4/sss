@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
+// Твой рабочий бэкенд на Render
+const API_BASE_URL = 'https://sss-backend-haev.onrender.com';
+
 const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   const hasPremium = true;
   const EMOJI_LIST = ['🤩', '😎', '🐱‍💻', '🔥', '💎', '👻', '👾', '👑', '🌌', '⚡'];
@@ -34,7 +37,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     try {
       setIsLoading(true); // Включаем загрузку перед запросами
 
-      const userRes = await fetch(`http://localhost:5000/api/users/${currentProfile}?viewer=${user.username}`);
+      const userRes = await fetch(`${API_BASE_URL}/api/users/${currentProfile}?viewer=${user.username}`);
       if (userRes.ok) {
         const userData = await userRes.json();
         setProfileData(prev => ({ ...prev, ...userData }));
@@ -45,11 +48,11 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
 
       let postsUrl = '';
       if (view === 'feed') {
-        postsUrl = 'http://localhost:5000/api/posts';
+        postsUrl = `${API_BASE_URL}/api/posts`;
       } else {
         postsUrl = activeTab === 'posts' 
-          ? `http://localhost:5000/api/posts/user/${currentProfile}`
-          : `http://localhost:5000/api/posts/reposts/${currentProfile}`;
+          ? `${API_BASE_URL}/api/posts/user/${currentProfile}`
+          : `${API_BASE_URL}/api/posts/reposts/${currentProfile}`;
       }
 
       const postsRes = await fetch(postsUrl);
@@ -74,7 +77,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   const handleFollow = async () => {
     try {
       const isSub = profileData.isSubscribed;
-      const res = await fetch(`http://localhost:5000/api/users/${currentProfile}/follow`, {
+      const res = await fetch(`${API_BASE_URL}/api/users/${currentProfile}/follow`, {
         method: isSub ? 'DELETE' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ follower: user.username })
@@ -95,7 +98,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   const handleSaveProfile = async () => {
     if (isEditing) {
       try {
-        const res = await fetch(`http://localhost:5000/api/users/${user.username}`, {
+        const res = await fetch(`${API_BASE_URL}/api/users/${user.username}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -122,7 +125,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
 
   const handleEmojiSelect = async (emoji) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/users/${user.username}`, {
+      const res = await fetch(`${API_BASE_URL}/api/users/${user.username}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ avatar_emoji: emoji }),
@@ -142,7 +145,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   const handlePublish = async () => {
     if (!postText.trim()) return;
     try {
-      const response = await fetch('http://localhost:5000/api/posts', {
+      const response = await fetch(`${API_BASE_URL}/api/posts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: user.username, content: postText }),
@@ -159,7 +162,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
 
   const handleLike = async (postId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/posts/${postId}/like`, {
+      const res = await fetch(`${API_BASE_URL}/api/posts/${postId}/like`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: user.username })
@@ -178,7 +181,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
       setActivePostComments(newComments);
     } else {
       try {
-        const res = await fetch(`http://localhost:5000/api/posts/${postId}/comments`);
+        const res = await fetch(`${API_BASE_URL}/api/posts/${postId}/comments`);
         const data = await res.json();
         setActivePostComments(prev => ({ ...prev, [postId]: data }));
       } catch (err) { console.error(err); }
@@ -189,7 +192,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     const text = commentInputs[postId];
     if (!text?.trim()) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/posts/${postId}/comments`, {
+      const res = await fetch(`${API_BASE_URL}/api/posts/${postId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: user.username, content: text })
@@ -208,7 +211,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
 
   const handleRepost = async (postId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/posts/${postId}/repost`, {
+      const res = await fetch(`${API_BASE_URL}/api/posts/${postId}/repost`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: user.username })
@@ -224,8 +227,8 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     try {
       const isRepostDelete = activeTab === 'reposts' && isOwnProfile;
       const url = isRepostDelete
-        ? `http://localhost:5000/api/posts/${postId}/repost` 
-        : `http://localhost:5000/api/posts/${postId}`;
+        ? `${API_BASE_URL}/api/posts/${postId}/repost` 
+        : `${API_BASE_URL}/api/posts/${postId}`;
 
       const response = await fetch(url, { 
         method: 'DELETE',

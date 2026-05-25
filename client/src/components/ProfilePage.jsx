@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 // Твой рабочий бэкенд на Render
 const API_BASE_URL = 'https://sss-backend-haev.onrender.com';
 
-// Вспомогательная функция для генерации градиента на основе имени (чтобы аватарки были уникальными)
+// Вспомогательная функция для генерации градиента на основе имени
 const getAvatarGradient = (username) => {
   if (!username) return 'from-gray-700 to-gray-900';
   const charCodeSum = username.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -23,12 +23,12 @@ const getAvatarGradient = (username) => {
 const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   const hasPremium = true;
 
-  const [view, setView] = useState('profile'); 
+  const [view, setView] = useState('profile'); // 'profile' | 'feed' | 'messages'
   const [postText, setPostText] = useState('');
   const [posts, setPosts] = useState([]);
-  const [activeTab, setActiveTab] = useState('posts'); 
+  const [activeTab, setActiveTab] = useState('posts');
   const [isEditing, setIsEditing] = useState(false);
-  const [activePostComments, setActivePostComments] = useState({}); 
+  const [activePostComments, setActivePostComments] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
 
   const [currentProfile, setCurrentProfile] = useState(user.username);
@@ -48,33 +48,130 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     isSubscribed: false
   });
 
+  // СОСТОЯНИЯ ДЛЯ ЛИЧНЫХ СООБЩЕНИЙ
+  const [chats, setChats] = useState([]);
+  const [activeChat, setActiveChat] = useState(null); // Содержит объект чата/собеседника
+  const [messages, setMessages] = useState([]);
+  const [messageInput, setMessageInput] = useState('');
+  const messagesEndRef = useRef(null);
+
+  // Скролл к последнему сообщению
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    if (view === 'messages' && activeChat) {
+      scrollToBottom();
+    }
+  }, [messages, view, activeChat]);
+
+  // Загрузка списка чатов
+  const loadChats = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/messages/chats?username=${user.username}`);
+      if (res.ok) {
+        const data = await res.json();
+        setChats(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error("Ошибка загрузки чатов:", err);
+    }
+  }, [user.username]);
+
+  // Загрузка сообщений конкретного чата
+  const loadMessages = useCallback(async (withUser) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/messages/history?user1=${user.username}&user2=${withUser}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error("Ошибка загрузки сообщений:", err);
+    }
+  }, [user.username]);
+
+  // Интервал для обновления чата и сообщений
+  useEffect(() => {
+    if (view === 'messages') {
+      loadChats();
+      const interval = setInterval(() => {
+        loadChats();
+        if (activeChat) {
+          loadMessages(activeChat.username);
+        }
+      }, 4000); // Полуллинг каждые 4 секунды
+      return () => clearInterval(interval);
+    }
+  }, [view, activeChat, loadChats, loadMessages]);
+
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !activeChat) return;
+    const textToSend = messageInput;
+    setMessageInput(''); // Оптимистично очищаем инпут
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sender: user.username,
+          receiver: activeChat.username,
+          content: textToSend
+        })
+      });
+      if (res.ok) {
+        const newMsg = await res.json();
+        setMessages(prev => [...prev, newMsg]);
+        loadChats(); // Обновляем список чатов, чтобы поднять текущий наверх
+      }
+    } catch (err) {
+      console.error("Ошибка отправки сообщения:", err);
+    }
+  };
+
+  const handleOpenChatFromProfile = (targetUser) => {
+    setAnimateContent(false);
+    setActiveChat({ username: targetUser });
+    loadMessages(targetUser);
+    setView('messages');
+  };
+
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       setShouldRenderLoader(true);
       setAnimateContent(false);
 
-      const userRes = await fetch(`${API_BASE_URL}/api/users/${currentProfile}?viewer=${user.username}`);
-      if (userRes.ok) {
-        const userData = await userRes.json();
-        setProfileData(prev => ({ ...prev, ...userData }));
+      if (view === 'messages') {
+        await loadChats();
+        if (activeChat) {
+          await loadMessages(activeChat.username);
+        }
       } else {
-        setProfileData(prev => ({ ...prev, username: currentProfile, handle: currentProfile }));
-      }
+        const userRes = await fetch(`${API_BASE_URL}/api/users/${currentProfile}?viewer=${user.username}`);
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          setProfileData(prev => ({ ...prev, ...userData }));
+        } else {
+          setProfileData(prev => ({ ...prev, username: currentProfile, handle: currentProfile }));
+        }
 
-      let postsUrl = '';
-      if (view === 'feed') {
-        postsUrl = `${API_BASE_URL}/api/posts`;
-      } else {
-        postsUrl = activeTab === 'posts' 
-          ? `${API_BASE_URL}/api/posts/user/${currentProfile}`
-          : `${API_BASE_URL}/api/posts/reposts/${currentProfile}`;
-      }
+        let postsUrl = '';
+        if (view === 'feed') {
+          postsUrl = `${API_BASE_URL}/api/posts`;
+        } else {
+          postsUrl = activeTab === 'posts'
+            ? `${API_BASE_URL}/api/posts/user/${currentProfile}`
+            : `${API_BASE_URL}/api/posts/reposts/${currentProfile}`;
+        }
 
-      const postsRes = await fetch(postsUrl);
-      if (postsRes.ok) {
-        const postsData = await postsRes.json();
-        setPosts(Array.isArray(postsData) ? postsData : []);
+        const postsRes = await fetch(postsUrl);
+        if (postsRes.ok) {
+          const postsData = await postsRes.json();
+          setPosts(Array.isArray(postsData) ? postsData : []);
+        }
       }
     } catch (err) {
       console.error("Ошибка загрузки данных с бэкенда:", err);
@@ -87,7 +184,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         setAnimateContent(true);
       }, 300);
     }
-  }, [currentProfile, view, activeTab, user.username]);
+  }, [currentProfile, view, activeTab, user.username, activeChat, loadChats, loadMessages]);
 
   useEffect(() => {
     loadData();
@@ -98,6 +195,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     if (targetProfile) setCurrentProfile(targetProfile);
     setView(newView);
     if (newView === 'profile') setActiveTab('posts');
+    if (newView !== 'messages') setActiveChat(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -133,8 +231,8 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         const res = await fetch(`${API_BASE_URL}/api/users/${user.username}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            username: profileData.username, 
+          body: JSON.stringify({
+            username: profileData.username,
             handle: profileData.handle
           }),
         });
@@ -147,7 +245,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
             setCurrentProfile(updated.username);
           }
         }
-      } catch (err) { 
+      } catch (err) {
         console.error("Ошибка сохранения:", err);
       }
     }
@@ -239,10 +337,10 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     try {
       const isRepostDelete = activeTab === 'reposts' && isOwnProfile;
       const url = isRepostDelete
-        ? `${API_BASE_URL}/api/posts/${postId}/repost` 
+        ? `${API_BASE_URL}/api/posts/${postId}/repost`
         : `${API_BASE_URL}/api/posts/${postId}`;
 
-      const response = await fetch(url, { 
+      const response = await fetch(url, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: user.username })
@@ -266,10 +364,10 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     return (
       <>
         {isOwnProfile ? (
-          <button 
-            onClick={handleSaveProfile} 
-            className={`${btnClasses} ${isEditing 
-                ? 'bg-[#ff2a5f] border-[#ff2a5f] text-white shadow-lg shadow-[#ff2a5f]/20' 
+          <button
+            onClick={handleSaveProfile}
+            className={`${btnClasses} ${isEditing
+                ? 'bg-[#ff2a5f] border-[#ff2a5f] text-white shadow-lg shadow-[#ff2a5f]/20'
                 : 'bg-white/5 border-white/10 text-white hover:bg-white hover:text-black'
               }`}
           >
@@ -287,11 +385,24 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
             </span>
           </button>
         ) : (
-          <button 
-            onClick={handleFollow} 
-            className={`btn-fixed flex-1 ${isMobile ? 'px-3 py-1.5 h-8 rounded-lg text-[9px]' : 'md:flex-none px-5 py-2.5 h-11 rounded-xl text-[10px]'} font-black uppercase transition-all cursor-pointer border ${profileData.isSubscribed ? 'bg-white/5 border-white/10 text-white' : 'bg-[#ff2a5f] border-[#ff2a5f] text-white shadow-lg shadow-[#ff2a5f]/20 hover:scale-105 active:scale-95'}`}>
-            {profileData.isSubscribed ? 'Отписаться' : 'Подписаться'}
-          </button>
+          <>
+            <button
+              onClick={handleFollow}
+              className={`btn-fixed flex-1 ${isMobile ? 'px-3 py-1.5 h-8 rounded-lg text-[9px]' : 'md:flex-none px-5 py-2.5 h-11 rounded-xl text-[10px]'} font-black uppercase transition-all cursor-pointer border ${profileData.isSubscribed ? 'bg-white/5 border-white/10 text-white' : 'bg-[#ff2a5f] border-[#ff2a5f] text-white shadow-lg shadow-[#ff2a5f]/20 hover:scale-105 active:scale-95'}`}>
+              {profileData.isSubscribed ? 'Отписаться' : 'Подписаться'}
+            </button>
+            
+            {/* КНОПКА ОТКРЫТИЯ ЛС ИЗ ПРОФИЛЯ */}
+            <button
+              onClick={() => handleOpenChatFromProfile(profileData.username)}
+              className={`btn-fixed flex-1 bg-white/5 border-white/10 text-white hover:bg-white hover:text-black ${isMobile ? 'px-3 py-1.5 h-8 rounded-lg text-[9px]' : 'md:flex-none px-5 py-2.5 h-11 rounded-xl text-[10px]'} font-black uppercase transition-all flex items-center justify-center gap-1.5`}
+            >
+              <svg className={isMobile ? "w-3 h-3" : "w-3.5 h-3.5"} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <span>ЛС</span>
+            </button>
+          </>
         )}
         <button className={premiumClasses}>Premium</button>
       </>
@@ -301,7 +412,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   return (
     <div className="min-h-screen bg-[#080808] text-white flex justify-center items-start pt-4 md:pt-8 px-3 md:px-6 pb-24 lg:pb-8 antialiased"
          style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
-      
+       
       <style>{`
         @keyframes flow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         .premium-nick { background: linear-gradient(90deg, #ff2a5f, #7e22ce, #ff2a5f); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: flow 3s linear infinite; }
@@ -320,12 +431,18 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
 
         .fade-loader { transition: opacity 0.30s ease-in-out, visibility 0.30s; opacity: 1; visibility: visible; }
         .fade-loader.hidden { opacity: 0; visibility: hidden; }
-        
+         
         .animated-content { opacity: 0; transform: translateY(10px); transition: opacity 0.4s cubic-bezier(0.215, 0.610, 0.355, 1), transform 0.4s cubic-bezier(0.215, 0.610, 0.355, 1); }
         .animated-content.visible { opacity: 1; transform: translateY(0); }
-        
+         
         .neon-spinner { width: 40px; height: 40px; border: 3px solid rgba(255, 255, 255, 0.03); border-top-color: #ff2a5f; border-radius: 50%; animation: spin 0.8s linear infinite; filter: drop-shadow(0 0 6px #ff2a5f); }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Кастомный скроллбар для зоны сообщений */
+        .chat-scroll::-webkit-scrollbar { width: 4px; }
+        .chat-scroll::-webkit-scrollbar-track { background: transparent; }
+        .chat-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.05); border-radius: 99px; }
+        .chat-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 42, 95, 0.3); }
       `}</style>
 
       {/* ЭКРАН ЗАГРУЗКИ */}
@@ -337,7 +454,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
       )}
 
       <div className="w-full max-w-[1100px] flex flex-col lg:flex-row gap-6 justify-center">
-        
+         
         {/* Сайдбар */}
         <aside className="fixed bottom-0 left-0 w-full lg:w-[240px] lg:static flex flex-row lg:flex-col justify-between lg:justify-start gap-5 glass-card p-3 sm:p-4 lg:p-5 rounded-t-[24px] lg:rounded-[28px] h-fit lg:sticky lg:top-8 shadow-2xl z-[999] border-t border-white/10 lg:border-none">
           <div className="hidden lg:flex justify-center py-4 cursor-pointer" onClick={() => handleViewChange('feed')}>
@@ -348,6 +465,15 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
               <svg className={`w-5 h-5 ${view === 'feed' ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2.5 2.5 0 00-2.5-2.5H14" /></svg>
               <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Лента</span>
             </div>
+
+            {/* ВКЛАДКА ЛС В СAЙДБАРЕ */}
+            <div onClick={() => handleViewChange('messages')} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'messages' ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
+              <svg className={`w-5 h-5 ${view === 'messages' ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Сообщения</span>
+            </div>
+
             <div onClick={() => handleViewChange('profile', user.username)} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'profile' && isOwnProfile ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
               <svg className={`w-5 h-5 ${view === 'profile' && isOwnProfile ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
               <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Профиль</span>
@@ -365,6 +491,110 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
 
         {/* Основной контент */}
         <main className={`flex-1 w-full max-w-[680px] flex flex-col gap-4 md:gap-5 animated-content ${animateContent ? 'visible' : ''}`}>
+          
+          {/* РЕНДЕР СТРАНИЦЫ ЛС */}
+          {view === 'messages' && (
+            <div className="glass-card rounded-2xl md:rounded-[32px] overflow-hidden shadow-2xl border-white/10 flex h-[75vh] md:h-[80vh] w-full">
+              
+              {/* Левая колонка: Список Чатов */}
+              <div className={`w-full md:w-2/5 border-r border-white/5 flex flex-col ${activeChat ? 'hidden md:flex' : 'flex'}`}>
+                <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                  <h1 className="text-lg md:text-xl font-black uppercase italic sss-logo tracking-tight">Директ</h1>
+                </div>
+                <div className="flex-1 overflow-y-auto p-2 space-y-1 chat-scroll">
+                  {chats.length === 0 ? (
+                    <div className="text-center py-8 text-gray-600 font-bold text-xs uppercase tracking-wider">Чатов пока нет</div>
+                  ) : (
+                    chats.map(chat => (
+                      <div
+                        key={chat.username}
+                        onClick={() => {
+                          setActiveChat(chat);
+                          loadMessages(chat.username);
+                        }}
+                        className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${activeChat?.username === chat.username ? 'bg-white/5 border border-white/5' : 'hover:bg-white/[0.02] border border-transparent'}`}
+                      >
+                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getAvatarGradient(chat.username)} flex items-center justify-center text-white font-black text-sm uppercase flex-shrink-0 shadow-md`}>
+                          {chat.username.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-baseline mb-0.5">
+                            <span className="font-black text-xs uppercase tracking-tight text-white/90 truncate">{chat.username}</span>
+                            {chat.last_message_time && (
+                              <span className="text-[8px] text-gray-600 font-bold uppercase">{new Date(chat.last_message_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            )}
+                          </div>
+                          <p className="text-gray-500 font-medium text-xs truncate leading-tight">{chat.last_message || 'Нет сообщений'}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Правая колонка: Окно Открытого Чата */}
+              <div className={`flex-1 flex flex-col bg-black/20 ${!activeChat ? 'hidden md:flex items-center justify-center' : 'flex'}`}>
+                {activeChat ? (
+                  <>
+                    {/* Хедер чата */}
+                    <div className="p-4 border-b border-white/5 bg-white/[0.01] flex items-center gap-3 h-[60px] flex-shrink-0">
+                      {/* Кнопка Назад для мобилки */}
+                      <button onClick={() => setActiveChat(null)} className="md:hidden p-1.5 text-gray-400 hover:text-white mr-1 bg-white/5 rounded-lg">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                      </button>
+                      <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${getAvatarGradient(activeChat.username)} flex items-center justify-center text-white font-black text-xs uppercase shadow-sm`}>
+                        {activeChat.username.charAt(0)}
+                      </div>
+                      <div className="flex-1">
+                        <h2 className="font-black text-xs uppercase tracking-wider text-white/90 cursor-pointer" onClick={() => handleViewChange('profile', activeChat.username)}>{activeChat.username}</h2>
+                        <span className="text-[8px] text-gray-600 font-black uppercase tracking-widest">Диалог</span>
+                      </div>
+                    </div>
+
+                    {/* Сообщения */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3 chat-scroll bg-[#0b0b0b]/40">
+                      {messages.map((msg, idx) => {
+                        const isMe = msg.sender === user.username;
+                        return (
+                          <div key={msg.id || idx} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl border text-[13px] leading-relaxed shadow-lg ${isMe ? 'bg-gradient-to-br from-[#ff2a5f]/15 to-[#7e22ce]/5 border-[#ff2a5f]/20 rounded-br-none text-white' : 'bg-white/5 border-white/5 rounded-bl-none text-gray-200'}`}>
+                              <p className="font-medium whitespace-pre-wrap break-words">{msg.content}</p>
+                              <div className="text-[8px] text-gray-600 font-bold uppercase mt-1 text-right tracking-tight select-none">
+                                {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...'}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div ref={messagesEndRef} />
+                    </div>
+
+                    {/* Поле ввода */}
+                    <div className="p-3 border-t border-white/5 bg-white/[0.01] flex gap-2 items-center flex-shrink-0">
+                      <input
+                        type="text"
+                        placeholder="Написать сообщение..."
+                        className="comment-input h-10 md:text-sm"
+                        value={messageInput}
+                        onChange={(e) => setMessageInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                      />
+                      <button onClick={handleSendMessage} className="bg-white text-black h-10 px-5 rounded-xl font-black text-[11px] uppercase hover:bg-gray-200 active:scale-95 transition-all flex items-center justify-center">Тык</button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 select-none opacity-40">
+                    <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                    </svg>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Выберите чат для общения</span>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          )}
+
           {view === 'profile' && (
             <div className="glass-card rounded-2xl md:rounded-[36px] overflow-hidden shadow-2xl border-white/10">
               <div className="h-28 md:h-40 bg-gradient-to-br from-[#111] via-[#1a1a1a] to-[#080808]"></div>
@@ -435,16 +665,15 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
               <div className="px-2 mb-2"><h1 className="text-2xl md:text-3xl font-black tracking-tight uppercase italic sss-logo text-center sm:text-left">Global Stream</h1></div>
           )}
 
-          {/* Создание нового поста */}
-          {(view === 'feed' || (isOwnProfile && activeTab === 'posts')) && (
+          {/* Создание нового поста (Скрыто в режиме сообщений) */}
+          {view !== 'messages' && (view === 'feed' || (isOwnProfile && activeTab === 'posts')) && (
             <div className="glass-card rounded-2xl md:rounded-[28px] p-4 md:p-6 shadow-xl">
               <div className="flex gap-3 md:gap-4">
-                {/* Аватарка автора при создании поста */}
                 <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getAvatarGradient(user.username)} flex items-center justify-center text-white font-black text-lg uppercase select-none flex-shrink-0`}>
                   {user.username ? user.username.charAt(0) : '?'}
                 </div>
-                <textarea 
-                  placeholder="Что нового?" 
+                <textarea
+                  placeholder="Что нового?"
                   value={postText}
                   onChange={(e) => setPostText(e.target.value)}
                   className="flex-1 bg-transparent border-none outline-none text-sm md:text-[16px] py-1 resize-none h-16 placeholder:text-gray-800 text-white font-medium"
@@ -456,75 +685,76 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
             </div>
           )}
 
-          {/* Лента Постов */}
-          <div className="flex flex-col gap-4 mb-16">
-            {posts.length > 0 && posts.map((post) => (
-              <div key={post.id} className="glass-card rounded-2xl md:rounded-[28px] p-4 md:p-6 transition-all group hover:border-white/10">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center gap-3">
-                    {/* Аватарка автора в ленте */}
-                    <div onClick={() => handleViewChange('profile', post.username)} className={`w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br ${getAvatarGradient(post.username)} flex items-center justify-center text-white font-black text-md uppercase select-none cursor-pointer hover:scale-105 transition-transform flex-shrink-0`}>
-                      {post.username ? post.username.charAt(0) : '?'}
+          {/* Лента Постов (Скрыта в режиме сообщений) */}
+          {view !== 'messages' && (
+            <div className="flex flex-col gap-4 mb-16">
+              {posts.length > 0 && posts.map((post) => (
+                <div key={post.id} className="glass-card rounded-2xl md:rounded-[28px] p-4 md:p-6 transition-all group hover:border-white/10">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-3">
+                      <div onClick={() => handleViewChange('profile', post.username)} className={`w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br ${getAvatarGradient(post.username)} flex items-center justify-center text-white font-black text-md uppercase select-none cursor-pointer hover:scale-105 transition-transform flex-shrink-0`}>
+                        {post.username ? post.username.charAt(0) : '?'}
+                      </div>
+                      <div>
+                        <p onClick={() => handleViewChange('profile', post.username)} className="font-black text-xs md:text-[13px] uppercase tracking-tight text-white/90 cursor-pointer hover:text-[#ff2a5f] transition-colors">{post.username}</p>
+                        <p className="text-[9px] text-gray-600 font-black uppercase mt-0.5">{post.created_at ? new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p onClick={() => handleViewChange('profile', post.username)} className="font-black text-xs md:text-[13px] uppercase tracking-tight text-white/90 cursor-pointer hover:text-[#ff2a5f] transition-colors">{post.username}</p>
-                      <p className="text-[9px] text-gray-600 font-black uppercase mt-0.5">{post.created_at ? new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}</p>
-                    </div>
+                    {(post.username === user.username || (isOwnProfile && activeTab === 'reposts')) && (
+                      <button onClick={() => handleDelete(post.id)} className="lg:opacity-0 lg:group-hover:opacity-100 p-2 text-gray-700 hover:text-red-500 transition-all cursor-pointer">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    )}
                   </div>
-                  {(post.username === user.username || (isOwnProfile && activeTab === 'reposts')) && (
-                    <button onClick={() => handleDelete(post.id)} className="lg:opacity-0 lg:group-hover:opacity-100 p-2 text-gray-700 hover:text-red-500 transition-all cursor-pointer">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                  <p className="pl-1 text-sm md:text-[15px] text-gray-300 leading-normal mb-5">{post.content}</p>
+                  
+                  {/* Кнопки взаимодействий */}
+                  <div className="flex items-center justify-between sm:justify-start gap-4 sm:gap-8 pt-3 border-t border-white/5">
+                    <button className={`interact-btn ${post.likes > 0 ? 'active' : ''}`} onClick={() => handleLike(post.id)}>
+                      <svg fill={post.likes > 0 ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+                      <span>{post.likes || 0}</span>
                     </button>
+                    <button className={`interact-btn ${activePostComments[post.id] ? 'active text-white' : ''}`} onClick={() => toggleComments(post.id)}>
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25-9 3.694-9 8.25c0 2.14.882 4.08 2.312 5.58.125.13.187.31.156.48l-.48 2.22c-.06.273.2.49.444.37l2.25-1.125c.15-.075.33-.075.48 0 1.05.525 2.22.825 3.45.825z" /></svg>
+                      <span>{post.comments_count || 0}</span>
+                    </button>
+                    <button onClick={() => handleRepost(post.id)} className={`interact-btn ${post.reposts > 0 ? 'text-blue-400' : ''}`}>
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" /></svg>
+                      <span>{post.reposts || 0}</span>
+                    </button>
+                  </div>
+
+                  {/* Блок комментариев */}
+                  {activePostComments[post.id] && (
+                    <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
+                      <div className="flex flex-col gap-3 max-h-60 overflow-y-auto pr-2">
+                        {activePostComments[post.id].map(comment => (
+                          <div key={comment.id} className="bg-white/5 p-3 rounded-2xl border border-white/5">
+                            <div className="flex justify-between mb-1">
+                              <span className="text-[11px] font-black text-[#ff2a5f] uppercase">{comment.username}</span>
+                              <span className="text-[9px] text-gray-600 uppercase font-bold">{new Date(comment.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            </div>
+                            <p className="text-[13px] text-gray-300">{comment.content}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Написать... "
+                          className="comment-input"
+                          value={commentInputs[post.id] || ''}
+                          onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                          onKeyDown={(e) => e.key === 'Enter' && handleSendComment(post.id)}
+                        />
+                        <button onClick={() => handleSendComment(post.id)} className="bg-white text-black px-4 rounded-xl font-black text-[10px] uppercase hover:bg-gray-200">OK</button>
+                      </div>
+                    </div>
                   )}
                 </div>
-                <p className="pl-1 text-sm md:text-[15px] text-gray-300 leading-normal mb-5">{post.content}</p>
-                
-                {/* Кнопки взаимодействий */}
-                <div className="flex items-center justify-between sm:justify-start gap-4 sm:gap-8 pt-3 border-t border-white/5">
-                  <button className={`interact-btn ${post.likes > 0 ? 'active' : ''}`} onClick={() => handleLike(post.id)}>
-                    <svg fill={post.likes > 0 ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
-                    <span>{post.likes || 0}</span>
-                  </button>
-                  <button className={`interact-btn ${activePostComments[post.id] ? 'active text-white' : ''}`} onClick={() => toggleComments(post.id)}>
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25-9 3.694-9 8.25c0 2.14.882 4.08 2.312 5.58.125.13.187.31.156.48l-.48 2.22c-.06.273.2.49.444.37l2.25-1.125c.15-.075.33-.075.48 0 1.05.525 2.22.825 3.45.825z" /></svg>
-                    <span>{post.comments_count || 0}</span>
-                  </button>
-                  <button onClick={() => handleRepost(post.id)} className={`interact-btn ${post.reposts > 0 ? 'text-blue-400' : ''}`}>
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" /></svg>
-                    <span>{post.reposts || 0}</span>
-                  </button>
-                </div>
-
-                {/* Блок комментариев */}
-                {activePostComments[post.id] && (
-                  <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
-                    <div className="flex flex-col gap-3 max-h-60 overflow-y-auto pr-2">
-                      {activePostComments[post.id].map(comment => (
-                        <div key={comment.id} className="bg-white/5 p-3 rounded-2xl border border-white/5">
-                          <div className="flex justify-between mb-1">
-                            <span className="text-[11px] font-black text-[#ff2a5f] uppercase">{comment.username}</span>
-                            <span className="text-[9px] text-gray-600 uppercase font-bold">{new Date(comment.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                          </div>
-                          <p className="text-[13px] text-gray-300">{comment.content}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        placeholder="Написать... " 
-                        className="comment-input"
-                        value={commentInputs[post.id] || ''}
-                        onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSendComment(post.id)}
-                      />
-                      <button onClick={() => handleSendComment(post.id)} className="bg-white text-black px-4 rounded-xl font-black text-[10px] uppercase hover:bg-gray-200">OK</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </main>
       </div>
     </div>

@@ -249,6 +249,51 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Вспомогательный компонент для кнопок действий, чтобы не дублировать разметку
+  const ActionButtons = ({ isMobile = false }) => {
+    const btnClasses = isMobile
+      ? "btn-fixed flex-1 px-3 py-1.5 h-8 rounded-lg text-[9px] font-black uppercase transition-all border flex items-center justify-center gap-1.5"
+      : "btn-fixed flex-1 md:flex-none px-5 py-2.5 h-11 md:h-11 rounded-xl text-[10px] font-black uppercase transition-all border flex items-center justify-center gap-2";
+
+    const premiumClasses = isMobile
+      ? "btn-fixed flex-1 bg-gradient-to-r from-[#ff2a5f] to-[#7e22ce] text-white px-3 py-1.5 h-8 rounded-lg text-[9px] font-black uppercase shadow-lg shadow-[#ff2a5f]/20 text-center flex items-center justify-center"
+      : "btn-fixed flex-1 md:flex-none bg-gradient-to-r from-[#ff2a5f] to-[#7e22ce] text-white px-5 py-2.5 h-11 rounded-xl text-[10px] font-black uppercase shadow-lg shadow-[#ff2a5f]/20 text-center flex items-center justify-center";
+
+    return (
+      <>
+        {isOwnProfile ? (
+          <button 
+            onClick={handleSaveProfile} 
+            className={`${btnClasses} ${isEditing 
+                ? 'bg-[#ff2a5f] border-[#ff2a5f] text-white shadow-lg shadow-[#ff2a5f]/20' 
+                : 'bg-white/5 border-white/10 text-white hover:bg-white hover:text-black'
+              }`}
+          >
+            {isEditing ? (
+              <svg className={isMobile ? "w-3 h-3" : "w-3.5 h-3.5"} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className={isMobile ? "w-3 h-3" : "w-3.5 h-3.5"} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            )}
+            <span>
+              {isEditing ? 'Сохранить' : 'Редактировать'}
+            </span>
+          </button>
+        ) : (
+          <button 
+            onClick={handleFollow} 
+            className={`btn-fixed flex-1 ${isMobile ? 'px-3 py-1.5 h-8 rounded-lg text-[9px]' : 'md:flex-none px-5 py-2.5 h-11 rounded-xl text-[10px]'} font-black uppercase transition-all cursor-pointer border ${profileData.isSubscribed ? 'bg-white/5 border-white/10 text-white' : 'bg-[#ff2a5f] border-[#ff2a5f] text-white shadow-lg shadow-[#ff2a5f]/20 hover:scale-105 active:scale-95'}`}>
+            {profileData.isSubscribed ? 'Отписаться' : 'Подписаться'}
+          </button>
+        )}
+        <button className={premiumClasses}>Premium</button>
+      </>
+    );
+  };
+
   if (isLoading && view === 'profile') {
     return <div className="min-h-screen bg-[#080808] flex items-center justify-center text-gray-500 font-black uppercase text-xs tracking-widest">Загрузка...</div>;
   }
@@ -308,7 +353,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
               <div className="h-28 md:h-40 bg-gradient-to-br from-[#111] via-[#1a1a1a] to-[#080808]"></div>
               <div className="px-4 md:px-8 pb-6 md:pb-8 relative">
                 
-                {/* Аватарка и Кнопки управления */}
+                {/* Аватарка и Кнопки управления (только для десктопа) */}
                 <div className="flex flex-col md:flex-row justify-between items-center md:items-end -mt-10 md:-mt-12 mb-6 gap-4">
                   <div className="relative group">
                     <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl md:rounded-[28px] bg-[#111] border-[4px] md:border-[5px] border-[#080808] flex items-center justify-center text-4xl md:text-5xl shadow-2xl">
@@ -347,38 +392,9 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                     )}
                   </div>
 
-                  {/* Кнопки действий */}
-                  <div className="flex gap-2 w-full md:w-auto justify-center items-stretch md:items-center">
-                    {isOwnProfile ? (
-                      <button 
-                        onClick={handleSaveProfile} 
-                        className={`btn-fixed flex-1 md:flex-none px-5 py-2.5 h-11 md:h-11 rounded-xl text-[10px] font-black uppercase transition-all border flex items-center justify-center gap-2
-                          ${isEditing 
-                            ? 'bg-[#ff2a5f] border-[#ff2a5f] text-white shadow-lg shadow-[#ff2a5f]/20' 
-                            : 'bg-white/5 border-white/10 text-white hover:bg-white hover:text-black'
-                          }`}
-                      >
-                        {isEditing ? (
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        ) : (
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        )}
-                        <span>
-                          {isEditing ? 'Сохранить' : 'Редактировать'}
-                        </span>
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={handleFollow} 
-                        className={`btn-fixed flex-1 md:flex-none px-5 py-2.5 h-11 rounded-xl text-[10px] font-black uppercase transition-all cursor-pointer border ${profileData.isSubscribed ? 'bg-white/5 border-white/10 text-white' : 'bg-[#ff2a5f] border-[#ff2a5f] text-white shadow-lg shadow-[#ff2a5f]/20 hover:scale-105 active:scale-95'}`}>
-                        {profileData.isSubscribed ? 'Отписаться' : 'Подписаться'}
-                      </button>
-                    )}
-                    <button className="btn-fixed flex-1 md:flex-none bg-gradient-to-r from-[#ff2a5f] to-[#7e22ce] text-white px-5 py-2.5 h-11 rounded-xl text-[10px] font-black uppercase shadow-lg shadow-[#ff2a5f]/20 text-center flex items-center justify-center">Premium</button>
+                  {/* Кнопки действий на десктопе */}
+                  <div className="hidden md:flex gap-2 w-full md:w-auto justify-center items-center">
+                    <ActionButtons isMobile={false} />
                   </div>
                 </div>
 
@@ -416,8 +432,13 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                   </div>
                 </div>
 
+                {/* Маленькие кнопки действий для мобилки над вкладками */}
+                <div className="flex md:hidden gap-2 w-full mt-5 justify-center items-center">
+                  <ActionButtons isMobile={true} />
+                </div>
+
                 {/* Вкладки Записи/Репосты */}
-                <div className="flex mt-6 p-1 bg-black/40 rounded-xl">
+                <div className="flex mt-4 md:mt-6 p-1 bg-black/40 rounded-xl">
                   <div onClick={() => setActiveTab('posts')} className={`flex-1 py-2.5 text-center rounded-lg font-black text-[11px] cursor-pointer uppercase transition-all ${activeTab === 'posts' ? 'bg-white/10 text-white' : 'text-gray-600 hover:text-gray-400'}`}>Записи</div>
                   <div onClick={() => setActiveTab('reposts')} className={`flex-1 py-2.5 text-center rounded-lg font-black text-[11px] cursor-pointer uppercase transition-all ${activeTab === 'reposts' ? 'bg-white/10 text-white' : 'text-gray-600 hover:text-gray-400'}`}>Репосты</div>
                 </div>

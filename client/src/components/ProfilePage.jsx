@@ -464,9 +464,10 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white flex justify-center items-start pt-4 md:pt-8 px-3 md:px-6 pb-24 lg:pb-8 antialiased"
+   
+       <div className="min-h-screen bg-[#080808] text-white flex justify-center items-start pt-4 md:pt-8 px-3 md:px-6 pb-24 lg:pb-8 antialiased"
          style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
-       
+      
       <style>{`
         @keyframes flow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         .premium-nick { background: linear-gradient(90deg, #ff2a5f, #7e22ce, #ff2a5f); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: flow 3s linear infinite; }
@@ -483,78 +484,27 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         .comment-input { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 8px 12px; width: 100%; outline: none; color: white; font-size: 13px; }
         .btn-fixed { flex-shrink: 0 !important; white-space: nowrap !important; }
 
+        /* ПЛАВНЫЕ КЛАССЫ ДЛЯ АНИМАЦИИ */
         .fade-loader { transition: opacity 0.30s ease-in-out, visibility 0.30s; opacity: 1; visibility: visible; }
         .fade-loader.hidden { opacity: 0; visibility: hidden; }
-         
+        
         .animated-content { opacity: 0; transform: translateY(10px); transition: opacity 0.4s cubic-bezier(0.215, 0.610, 0.355, 1), transform 0.4s cubic-bezier(0.215, 0.610, 0.355, 1); }
         .animated-content.visible { opacity: 1; transform: translateY(0); }
-
-        .glowing-rhombus {
-          width: 48px;
-          height: 48px;
-          transform: rotate(45deg);
-          position: relative;
-          background: transparent;
-        }
         
-        .glowing-rhombus::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          border-radius: 2px;
-          padding: 2px; 
-          background: linear-gradient(90deg, #ff2a5f, #7e22ce, #ff2a5f);
-          background-size: 200% auto;
-          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-          -webkit-mask-composite: xor;
-          mask-composite: exclude;
-          animation: flow 2s linear infinite, spin-rhombus 2s linear infinite;
-        }
-
-        .glowing-rhombus::after {
-          content: '';
-          position: absolute;
-          inset: -2px;
-          border: 3px solid transparent;
-          border-radius: 2px;
-          border-top-color: #ff2a5f; 
-          filter: drop-shadow(0 0 6px #ff2a5f) drop-shadow(0 0 12px #7e22ce);
-          animation: spin-rhombus 2s linear infinite, switch-edges 2s steps(4) infinite;
-        }
-
-        @keyframes spin-rhombus {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-
-        @keyframes switch-edges {
-          0% { border-color: transparent; border-top-color: #ff2a5f; filter: drop-shadow(0 0 8px #ff2a5f); }
-          25% { border-color: transparent; border-right-color: #be39b3; filter: drop-shadow(0 0 8px #be39b3); }
-          50% { border-color: transparent; border-bottom-color: #7e22ce; filter: drop-shadow(0 0 8px #7e22ce); }
-          75% { border-color: transparent; border-left-color: #be39b3; filter: drop-shadow(0 0 8px #be39b3); }
-          100% { border-color: transparent; border-top-color: #ff2a5f; filter: drop-shadow(0 0 8px #ff2a5f); }
-        }
-
-        .chat-scroll::-webkit-scrollbar { width: 4px; }
-        .chat-scroll::-webkit-scrollbar-track { background: transparent; }
-        .chat-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.05); border-radius: 99px; }
-        .chat-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 42, 95, 0.3); }
-
-        /* Стили контейнера эмодзи под стиль SSS */
-        .emoji-bar { background: rgba(10, 10, 10, 0.95); border: 1px solid rgba(255, 255, 255, 0.06); box-shadow: inset 0 0 10px rgba(255, 42, 95, 0.05); }
-        .emoji-item { transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        .emoji-item:hover { transform: scale(1.3); }
+        /* Кастомный неоновый спиннер */
+        .neon-spinner { width: 40px; height: 40px; border: 3px border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.03); border-top-color: #ff2a5f; animation: spin 0.8s linear infinite; filter: drop-shadow(0 0 6px #ff2a5f); }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
-      {/* =========================================================================
-          ПОМЕТКА: ЭТОТ БЛОК ЗАГРУЗКИ НЕЛЬЗЯ ТРОГАТЬ И МЕНЯТЬ В БУДУЩЕМ!
-          ========================================================================= */}
+      {/* КРАСИВЫЙ ПЛАВНЫЙ ЭКРАН ЗАГРУЗКИ */}
       {shouldRenderLoader && (
-        <div className={`fixed inset-0 bg-[#080808] z-[9999] flex flex-col gap-8 items-center justify-center fade-loader ${!isLoading ? 'hidden' : ''}`}>
-          <div className="glowing-rhombus"></div>
-          <div className="text-gray-500 font-black uppercase text-[10px] tracking-[0.3em] mt-1">Загрузка...</div>
+        <div className={`fixed inset-0 bg-[#080808] z-[9999] flex flex-col gap-4 items-center justify-center fade-loader ${!isLoading ? 'hidden' : ''}`}>
+          <div className="neon-spinner"></div>
+          <div className="text-gray-500 font-black uppercase text-[10px] tracking-[0.25em] sss-logo">Загрузка данных...</div>
         </div>
       )}
+
+
       {/* ========================================================================= */}
 
       <div className="w-full max-w-[1100px] flex flex-col lg:flex-row gap-6 justify-center">
@@ -881,7 +831,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                       </button>
                     </div>
 
-                    {/* Блок комментариев */}
+                           {/* Блок комментариев */}
                     {activePostComments[post.id] && (
                       <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
                         <div className="flex flex-col gap-3 max-h-60 overflow-y-auto pr-2">
@@ -894,6 +844,17 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                               <p className="text-[13px] text-gray-300">{comment.content}</p>
                             </div>
                           ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Написать... "
+                            className="comment-input"
+                            value={commentInputs[post.id] || ''}
+                            onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSendComment(post.id)}
+                          />
+                          <button onClick={() => handleSendComment(post.id)} className="bg-white text-black px-4 rounded-xl font-black text-[10px] uppercase hover:bg-gray-200">OK</button>
                         </div>
 
                         {/* ПАНЕЛЬ ЭМОДЗИ ДЛЯ КОММЕНТАРИЕВ */}

@@ -9,18 +9,23 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const pool = new Pool({
-  user: 'postgres',
-  host: 'db',
-  database: 'sss_db',
-  password: 'Kirilmaxim123',
-  port: 5432,
-});
+// Настраиваем порт динамически для Render
+const PORT = process.env.PORT || 5000;
+
+// Гибкое подключение: если есть DATABASE_URL (на Render), берем её. Иначе — локальные настройки.
+const pool = new Pool(
+  process.env.DATABASE_URL
+    ? { connectionString: process.env.DATABASE_URL }
+    : {
+        user: 'postgres',
+        host: 'db',
+        database: 'sss_db',
+        password: 'Kirilmaxim123',
+        port: 5432,
+      }
+);
 
 const initDB = async () => {
-  console.log('⏳ Ожидание готовности базы данных (5 сек)...');
-  await new Promise(resolve => setTimeout(resolve, 5000));
-
   try {
     // Таблица юзеров
     await pool.query(`
@@ -103,14 +108,13 @@ initDB();
 
 app.get('/api/users/:username', async (req, res) => {
   const { username } = req.params;
-  const viewer = req.query.viewer; // Опционально передаем ник того, кто смотрит
+  const viewer = req.query.viewer;
   try {
     const userRes = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
     if (userRes.rows.length === 0) return res.status(404).json({ error: "Юзер не найден" });
     
     let userData = userRes.rows[0];
 
-    // Проверяем подписку, если указан зритель
     if (viewer) {
       const followCheck = await pool.query(
         'SELECT 1 FROM follows WHERE follower_username = $1 AND following_username = $2',
@@ -146,7 +150,7 @@ app.put('/api/users/:oldUsername', async (req, res) => {
   }
 });
 
-// --- ПОДПИСКИ (ИСПРАВЛЕНО) ---
+// --- ПОДПИСКИ ---
 
 app.post('/api/users/:username/follow', async (req, res) => {
   const targetUser = req.params.username;
@@ -156,17 +160,14 @@ app.post('/api/users/:username/follow', async (req, res) => {
 
   try {
     await pool.query('BEGIN');
-    // Проверяем наличие подписки
     const check = await pool.query(
       'SELECT 1 FROM follows WHERE follower_username = $1 AND following_username = $2',
       [follower, targetUser]
     );
 
     if (check.rows.length > 0) {
-        // Если уже есть — выходим или можно сделать переключатель, 
-        // но фронтенд шлет разные методы, так что тут просто защита
-        await pool.query('COMMIT');
-        return res.json({ message: "Уже подписан" });
+      await pool.query('COMMIT');
+      return res.json({ message: "Уже подписан" });
     }
 
     await pool.query('INSERT INTO follows (follower_username, following_username) VALUES ($1, $2)', [follower, targetUser]);
@@ -247,7 +248,7 @@ app.delete('/api/posts/:id', async (req, res) => {
   }
 });
 
-// --- РЕПОСТЫ (ИСПРАВЛЕНО) ---
+// --- РЕПОСТЫ ---
 
 app.post('/api/posts/:id/repost', async (req, res) => {
   const { id } = req.params;
@@ -380,4 +381,5 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-app.listen(5000, () => console.log('🔥 СЕРВЕР ЖАРИТ НА ПОРТУ 5000'));
+// Слушаем динамический порт от Render
+app.listen(PORT, () => console.log(`🔥 СЕРВЕР ЗАПУЩЕН НА ПОРТУ ${PORT}`));

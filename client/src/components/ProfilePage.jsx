@@ -21,6 +21,11 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
 
   // Добавляем флаг загрузки, чтобы управлять экраном ожидания
   const [isLoading, setIsLoading] = useState(true);
+  // Локальный стейт для плавного исчезновения лоадера из DOM после анимации
+  const [shouldRenderLoader, setShouldRenderLoader] = useState(true);
+
+  // Стейт для триггера анимации появления контента
+  const [animateContent, setAnimateContent] = useState(false);
 
   const [profileData, setProfileData] = useState({
     username: '',
@@ -35,14 +40,15 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
 
   const loadData = useCallback(async () => {
     try {
-      setIsLoading(true); // Включаем загрузку перед запросами
+      setIsLoading(true);
+      setShouldRenderLoader(true);
+      setAnimateContent(false); // Сбрасываем видимость контента перед загрузкой
 
       const userRes = await fetch(`${API_BASE_URL}/api/users/${currentProfile}?viewer=${user.username}`);
       if (userRes.ok) {
         const userData = await userRes.json();
         setProfileData(prev => ({ ...prev, ...userData }));
       } else {
-        // Если база пустая и юзер не найден, подставляем дефолт, чтобы страница не висла
         setProfileData(prev => ({ ...prev, username: currentProfile, handle: currentProfile }));
       }
 
@@ -63,16 +69,34 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     } catch (err) {
       console.error("Ошибка загрузки данных с бэкенда:", err);
       setPosts([]);
-      // На случай пустой БД даем дефолтное имя, чтобы рендер пошел дальше
       setProfileData(prev => ({ ...prev, username: currentProfile, handle: currentProfile }));
     } finally {
-      setIsLoading(false); // ЖЕЛЕЗОБЕТОННО ВЫКЛЮЧАЕТ ЗАГРУЗКУ ПРИ ЛЮБОМ РАСКЛАДЕ
+      setIsLoading(false);
+      // Даем CSS-анимации на fade-out лоадера отработать (300ms) перед удалением его из DOM
+      setTimeout(() => {
+        setShouldRenderLoader(false);
+        setAnimateContent(true); // Плавно включаем основной контент
+      }, 300);
     }
   }, [currentProfile, view, activeTab, user.username]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Быстрый переключатель вкладок/видов с мгновенным перезапуском анимации появления
+  const handleViewChange = (newView, targetProfile = null) => {
+    setAnimateContent(false);
+    if (targetProfile) setCurrentProfile(targetProfile);
+    setView(newView);
+    if (newView === 'profile') setActiveTab('posts');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleTabChange = (newTab) => {
+    setAnimateContent(false);
+    setActiveTab(newTab);
+  };
 
   const handleFollow = async () => {
     try {
@@ -242,14 +266,6 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     } catch (err) { console.error(err); }
   };
 
-  const goToProfile = (username) => {
-    setCurrentProfile(username);
-    setView('profile');
-    setActiveTab('posts');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // Вспомогательный компонент для кнопок действий, чтобы не дублировать разметку
   const ActionButtons = ({ isMobile = false }) => {
     const btnClasses = isMobile
       ? "btn-fixed flex-1 px-3 py-1.5 h-8 rounded-lg text-[9px] font-black uppercase transition-all border flex items-center justify-center gap-1.5"
@@ -294,10 +310,6 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     );
   };
 
-  if (isLoading && view === 'profile') {
-    return <div className="min-h-screen bg-[#080808] flex items-center justify-center text-gray-500 font-black uppercase text-xs tracking-widest">Загрузка...</div>;
-  }
-
   return (
     <div className="min-h-screen bg-[#080808] text-white flex justify-center items-start pt-4 md:pt-8 px-3 md:px-6 pb-24 lg:pb-8 antialiased"
          style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
@@ -317,21 +329,40 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         .interact-btn span { font-size: 11px; font-weight: 800; text-transform: uppercase; }
         .comment-input { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 8px 12px; width: 100%; outline: none; color: white; font-size: 13px; }
         .btn-fixed { flex-shrink: 0 !important; white-space: nowrap !important; }
+
+        /* ПЛАВНЫЕ КЛАССЫ ДЛЯ АНИМАЦИИ */
+        .fade-loader { transition: opacity 0.30s ease-in-out, visibility 0.30s; opacity: 1; visibility: visible; }
+        .fade-loader.hidden { opacity: 0; visibility: hidden; }
+        
+        .animated-content { opacity: 0; transform: translateY(10px); transition: opacity 0.4s cubic-bezier(0.215, 0.610, 0.355, 1), transform 0.4s cubic-bezier(0.215, 0.610, 0.355, 1); }
+        .animated-content.visible { opacity: 1; transform: translateY(0); }
+        
+        /* Кастомный неоновый спиннер */
+        .neon-spinner { width: 40px; height: 40px; border: 3px border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.03); border-top-color: #ff2a5f; animation: spin 0.8s linear infinite; filter: drop-shadow(0 0 6px #ff2a5f); }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
+
+      {/* КРАСИВЫЙ ПЛАВНЫЙ ЭКРАН ЗАГРУЗКИ */}
+      {shouldRenderLoader && (
+        <div className={`fixed inset-0 bg-[#080808] z-[9999] flex flex-col gap-4 items-center justify-center fade-loader ${!isLoading ? 'hidden' : ''}`}>
+          <div className="neon-spinner"></div>
+          <div className="text-gray-500 font-black uppercase text-[10px] tracking-[0.25em] sss-logo">Загрузка данных...</div>
+        </div>
+      )}
 
       <div className="w-full max-w-[1100px] flex flex-col lg:flex-row gap-6 justify-center">
         
         {/* Адаптивный Сайдбар */}
         <aside className="fixed bottom-0 left-0 w-full lg:w-[240px] lg:static flex flex-row lg:flex-col justify-between lg:justify-start gap-5 glass-card p-3 sm:p-4 lg:p-5 rounded-t-[24px] lg:rounded-[28px] h-fit lg:sticky lg:top-8 shadow-2xl z-[999] border-t border-white/10 lg:border-none">
-          <div className="hidden lg:flex justify-center py-4 cursor-pointer" onClick={() => setView('feed')}>
+          <div className="hidden lg:flex justify-center py-4 cursor-pointer" onClick={() => handleViewChange('feed')}>
             <span className="sss-logo text-4xl font-black italic tracking-tighter select-none">SSS</span>
           </div>
           <nav className="flex flex-row lg:flex-col gap-1 w-full lg:w-auto justify-around lg:justify-start">
-            <div onClick={() => setView('feed')} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'feed' ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
+            <div onClick={() => handleViewChange('feed')} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'feed' ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
               <svg className={`w-5 h-5 ${view === 'feed' ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2.5 2.5 0 00-2.5-2.5H14" /></svg>
               <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Лента</span>
             </div>
-            <div onClick={() => { setCurrentProfile(user.username); setView('profile'); setActiveTab('posts'); }} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'profile' && isOwnProfile ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
+            <div onClick={() => handleViewChange('profile', user.username)} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'profile' && isOwnProfile ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
               <svg className={`w-5 h-5 ${view === 'profile' && isOwnProfile ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
               <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Профиль</span>
             </div>
@@ -346,14 +377,14 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
           </div>
         </aside>
 
-        {/* Основной контент */}
-        <main className="flex-1 w-full max-w-[680px] flex flex-col gap-4 md:gap-5">
+        {/* Основной контент с анимацией переключения */}
+        <main className={`flex-1 w-full max-w-[680px] flex flex-col gap-4 md:gap-5 animated-content ${animateContent ? 'visible' : ''}`}>
           {view === 'profile' && (
             <div className="glass-card rounded-2xl md:rounded-[36px] overflow-hidden shadow-2xl border-white/10">
               <div className="h-28 md:h-40 bg-gradient-to-br from-[#111] via-[#1a1a1a] to-[#080808]"></div>
               <div className="px-4 md:px-8 pb-6 md:pb-8 relative">
                 
-                {/* Аватарка и Кнопки управления (только для десктопа) */}
+                {/* Аватарка и Кнопки управления */}
                 <div className="flex flex-col md:flex-row justify-between items-center md:items-end -mt-10 md:-mt-12 mb-6 gap-4">
                   <div className="relative group">
                     <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl md:rounded-[28px] bg-[#111] border-[4px] md:border-[5px] border-[#080808] flex items-center justify-center text-4xl md:text-5xl shadow-2xl">
@@ -392,7 +423,6 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                     )}
                   </div>
 
-                  {/* Кнопки действий на десктопе */}
                   <div className="hidden md:flex gap-2 w-full md:w-auto justify-center items-center">
                     <ActionButtons isMobile={false} />
                   </div>
@@ -432,15 +462,15 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                   </div>
                 </div>
 
-                {/* Маленькие кнопки действий для мобилки над вкладками */}
+                {/* Мобильные кнопки действий */}
                 <div className="flex md:hidden gap-2 w-full mt-5 justify-center items-center">
                   <ActionButtons isMobile={true} />
                 </div>
 
                 {/* Вкладки Записи/Репосты */}
                 <div className="flex mt-4 md:mt-6 p-1 bg-black/40 rounded-xl">
-                  <div onClick={() => setActiveTab('posts')} className={`flex-1 py-2.5 text-center rounded-lg font-black text-[11px] cursor-pointer uppercase transition-all ${activeTab === 'posts' ? 'bg-white/10 text-white' : 'text-gray-600 hover:text-gray-400'}`}>Записи</div>
-                  <div onClick={() => setActiveTab('reposts')} className={`flex-1 py-2.5 text-center rounded-lg font-black text-[11px] cursor-pointer uppercase transition-all ${activeTab === 'reposts' ? 'bg-white/10 text-white' : 'text-gray-600 hover:text-gray-400'}`}>Репосты</div>
+                  <div onClick={() => handleTabChange('posts')} className={`flex-1 py-2.5 text-center rounded-lg font-black text-[11px] cursor-pointer uppercase transition-all ${activeTab === 'posts' ? 'bg-white/10 text-white' : 'text-gray-600 hover:text-gray-400'}`}>Записи</div>
+                  <div onClick={() => handleTabChange('reposts')} className={`flex-1 py-2.5 text-center rounded-lg font-black text-[11px] cursor-pointer uppercase transition-all ${activeTab === 'reposts' ? 'bg-white/10 text-white' : 'text-gray-600 hover:text-gray-400'}`}>Репосты</div>
                 </div>
               </div>
             </div>
@@ -474,11 +504,11 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
               <div key={post.id} className="glass-card rounded-2xl md:rounded-[28px] p-4 md:p-6 transition-all group hover:border-white/10">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3">
-                    <div onClick={() => goToProfile(post.username)} className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-gray-800 to-[#111] flex items-center justify-center text-lg cursor-pointer hover:scale-105 transition-transform flex-shrink-0">
+                    <div onClick={() => handleViewChange('profile', post.username)} className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-gray-800 to-[#111] flex items-center justify-center text-lg cursor-pointer hover:scale-105 transition-transform flex-shrink-0">
                       {post.avatar_emoji || '🤩'}
                     </div>
                     <div>
-                      <p onClick={() => goToProfile(post.username)} className="font-black text-xs md:text-[13px] uppercase tracking-tight text-white/90 cursor-pointer hover:text-[#ff2a5f] transition-colors">{post.username}</p>
+                      <p onClick={() => handleViewChange('profile', post.username)} className="font-black text-xs md:text-[13px] uppercase tracking-tight text-white/90 cursor-pointer hover:text-[#ff2a5f] transition-colors">{post.username}</p>
                       <p className="text-[9px] text-gray-600 font-black uppercase mt-0.5">{post.created_at ? new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}</p>
                     </div>
                   </div>

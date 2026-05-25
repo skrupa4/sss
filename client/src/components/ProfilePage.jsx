@@ -804,7 +804,17 @@ const [profileData, setProfileData] = useState({
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <p onClick={() => handleViewChange('profile', post.username)} className="font-black text-xs md:text-[13px] uppercase tracking-tight text-white/90 cursor-pointer hover:text-[#ff2a5f] transition-colors">{post.username}</p>
+                            <p 
+                                       onClick={() => handleViewChange('profile', post.username)}                              
+                                 className={`font-black text-xs md:text-[13px] uppercase tracking-tight cursor-pointer flex-shrink-0 ${
+                            // Если на бэкенде есть флаг премиума у поста, или если это ваш собственный пост с Premium
+                       (post.hasPremium || (post.username === user.username && hasPremium)) 
+                            ? 'premium-nick' 
+                             : 'text-white/90 hover:text-[#ff2a5f] transition-colors'
+                              }`}
+>
+                            {post.username}
+                          </p>
                             {/* ЛОГИКА ГАЛОЧКИ ДЛЯ КАЖДОГО ПОСТА В ЛЕНТЕ */}
                             {post.is_verified && (
                               <div className="w-3.5 h-3.5 bg-[#ff2a5f] rounded-full flex items-center justify-center text-[7px] text-white font-bold shadow-[0_0_8px_rgba(255,42,95,0.4)] flex-shrink-0" title="Верифицированный аккаунт">✓</div>

@@ -429,71 +429,17 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         .comment-input { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 8px 12px; width: 100%; outline: none; color: white; font-size: 13px; }
         .btn-fixed { flex-shrink: 0 !important; white-space: nowrap !important; }
 
+        /* ПЛАВНЫЕ КЛАССЫ ДЛЯ АНИМАЦИИ */
         .fade-loader { transition: opacity 0.30s ease-in-out, visibility 0.30s; opacity: 1; visibility: visible; }
         .fade-loader.hidden { opacity: 0; visibility: hidden; }
-         
+        
         .animated-content { opacity: 0; transform: translateY(10px); transition: opacity 0.4s cubic-bezier(0.215, 0.610, 0.355, 1), transform 0.4s cubic-bezier(0.215, 0.610, 0.355, 1); }
         .animated-content.visible { opacity: 1; transform: translateY(0); }
-
-        /* =========================================================================
-           ОБНОВЛЕННЫЙ ДИЗАЙН ЗАГРУЗКИ (РОМБ) ПОД СТИЛЬ SSS С ДИНАМИЧЕСКИМИ ГРАНЯМИ
-           ========================================================================= */
-        .glowing-rhombus {
-          width: 48px;
-          height: 48px;
-          transform: rotate(45deg);
-          position: relative;
-          background: transparent;
-        }
         
-        /* Эффект переливающегося неонового градиента по контуру всего ромба */
-        .glowing-rhombus::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          border-radius: 2px;
-          padding: 2px; /* Толщина рамки */
-          background: linear-gradient(90deg, #ff2a5f, #7e22ce, #ff2a5f);
-          background-size: 200% auto;
-          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-          -webkit-mask-composite: xor;
-          mask-composite: exclude;
-          animation: flow 2s linear infinite, spin-rhombus 2s linear infinite;
-        }
+        /* Кастомный неоновый спиннер */
+        .neon-spinner { width: 40px; height: 40px; border: 3px border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.03); border-top-color: #ff2a5f; animation: spin 0.8s linear infinite; filter: drop-shadow(0 0 6px #ff2a5f); }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Имитация загорающихся и гаснущих граней при вращении */
-        .glowing-rhombus::after {
-          content: '';
-          position: absolute;
-          inset: -2px;
-          border: 3px solid transparent;
-          border-radius: 2px;
-          /* Изначально подсвечиваем верхнюю грань фирменным цветом */
-          border-top-color: #ff2a5f; 
-          filter: drop-shadow(0 0 6px #ff2a5f) drop-shadow(0 0 12px #7e22ce);
-          animation: spin-rhombus 2s linear infinite, switch-edges 2s steps(4) infinite;
-        }
-
-        @keyframes spin-rhombus {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-
-        /* Каждые 25% цикла (угол поворота на 90 градусов) активная светящаяся сторона смещается */
-        @keyframes switch-edges {
-          0% { border-color: transparent; border-top-color: #ff2a5f; filter: drop-shadow(0 0 8px #ff2a5f); }
-          25% { border-color: transparent; border-right-color: #be39b3; filter: drop-shadow(0 0 8px #be39b3); }
-          50% { border-color: transparent; border-bottom-color: #7e22ce; filter: drop-shadow(0 0 8px #7e22ce); }
-          75% { border-color: transparent; border-left-color: #be39b3; filter: drop-shadow(0 0 8px #be39b3); }
-          100% { border-color: transparent; border-top-color: #ff2a5f; filter: drop-shadow(0 0 8px #ff2a5f); }
-        }
-        /* ========================================================================= */
-
-        /* Кастомный скроллбар для зоны сообщений */
-        .chat-scroll::-webkit-scrollbar { width: 4px; }
-        .chat-scroll::-webkit-scrollbar-track { background: transparent; }
-        .chat-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.05); border-radius: 99px; }
-        .chat-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 42, 95, 0.3); }
       `}</style>
 
       {/* =========================================================================

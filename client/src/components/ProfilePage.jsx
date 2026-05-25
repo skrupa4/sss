@@ -49,10 +49,6 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   const [shouldRenderLoader, setShouldRenderLoader] = useState(true);
   const [animateContent, setAnimateContent] = useState(false);
 
-  // СОСТОЯНИЯ ДЛЯ ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ
-  const [postToDelete, setPostToDelete] = useState(null);
-  const [commentToDelete, setCommentToDelete] = useState(null); // { postId, commentId }
-
   const [profileData, setProfileData] = useState({
     username: '',
     handle: '',
@@ -261,7 +257,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
           }
         }
       } catch (err) {
-        console.error("Ошибка保存:", err);
+        console.error("Ошибка сохранения:", err);
       }
     }
     setIsEditing(!isEditing);
@@ -370,25 +366,6 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     } catch (err) { console.error(err); }
   };
 
-  // ФУНКЦИЯ ДЛЯ УДАЛЕНИЯ КОММЕНТАРИЯ
-  const handleDeleteComment = async (postId, commentId) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/posts/${postId}/comments/${commentId}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: user.username })
-      });
-
-      if (response.ok) {
-        setActivePostComments(prev => ({
-          ...prev,
-          [postId]: (prev[postId] || []).filter(c => c.id !== commentId)
-        }));
-        setPosts(prev => prev.map(p => p.id === postId ? { ...p, comments_count: Math.max(0, (p.comments_count || 0) - 1) } : p));
-      }
-    } catch (err) { console.error("Ошибка удаления комментария:", err); }
-  };
-
   // Вставка эмодзи в текстовое поле поста с сохранением фокуса курсора
   const addEmojiToPost = (emoji) => {
     const textarea = postInputRef.current;
@@ -487,6 +464,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   };
 
   return (
+   
        <div className="min-h-screen bg-[#080808] text-white flex justify-center items-start pt-4 md:pt-8 px-3 md:px-6 pb-24 lg:pb-8 antialiased"
          style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
       
@@ -514,7 +492,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         .animated-content.visible { opacity: 1; transform: translateY(0); }
         
         /* Кастомный неоновый спиннер */
-        .neon-spinner { width: 40px; height: 40px; border: 3px solid rgba(255, 255, 255, 0.03); border-top-color: #ff2a5f; animation: spin 0.8s linear infinite; filter: drop-shadow(0 0 6px #ff2a5f); }
+        .neon-spinner { width: 40px; height: 40px; border: 3px border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.03); border-top-color: #ff2a5f; animation: spin 0.8s linear infinite; filter: drop-shadow(0 0 6px #ff2a5f); }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
@@ -526,59 +504,6 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         </div>
       )}
 
-      {/* МОДАЛЬНОЕ ОКНО: ПОДТВЕРЖДЕНИЕ УДАЛЕНИЯ ПОСТА */}
-      {postToDelete !== null && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[10000] flex items-center justify-center p-4">
-          <div className="glass-card rounded-[24px] max-w-[400px] w-full p-6 border border-white/10 text-center shadow-2xl">
-            <h3 className="text-[16px] font-black uppercase text-white tracking-wider mb-2">Удаление записи</h3>
-            <p className="text-[13px] text-gray-400 mb-6">Вы уверены, что хотите удалить запись?</p>
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setPostToDelete(null)}
-                className="flex-1 bg-white/5 border border-white/10 rounded-xl py-3 text-[11px] font-black uppercase hover:bg-white/10 transition-all text-white"
-              >
-                Отмена
-              </button>
-              <button 
-                onClick={() => {
-                  handleDelete(postToDelete);
-                  setPostToDelete(null);
-                }}
-                className="flex-1 bg-[#ff2a5f] rounded-xl py-3 text-[11px] font-black uppercase hover:bg-[#ff2a5f]/80 transition-all text-white shadow-lg shadow-[#ff2a5f]/20"
-              >
-                Удалить
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* МОДАЛЬНОЕ ОКНО: ПОДТВЕРЖДЕНИЕ УДАЛЕНИЯ КОММЕНТАРИЯ */}
-      {commentToDelete !== null && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[10000] flex items-center justify-center p-4">
-          <div className="glass-card rounded-[24px] max-w-[400px] w-full p-6 border border-white/10 text-center shadow-2xl">
-            <h3 className="text-[16px] font-black uppercase text-white tracking-wider mb-2">Удаление комментария</h3>
-            <p className="text-[13px] text-gray-400 mb-6">Вы уверены, что хотите удалить этот комментарий?</p>
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setCommentToDelete(null)}
-                className="flex-1 bg-white/5 border border-white/10 rounded-xl py-3 text-[11px] font-black uppercase hover:bg-white/10 transition-all text-white"
-              >
-                Отмена
-              </button>
-              <button 
-                onClick={() => {
-                  handleDeleteComment(commentToDelete.postId, commentToDelete.commentId);
-                  setCommentToDelete(null);
-                }}
-                className="flex-1 bg-[#ff2a5f] rounded-xl py-3 text-[11px] font-black uppercase hover:bg-[#ff2a5f]/80 transition-all text-white shadow-lg shadow-[#ff2a5f]/20"
-              >
-                Удалить
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ========================================================================= */}
 
@@ -594,18 +519,21 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
               <svg className={`w-5 h-5 ${view === 'feed' ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012-2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2.5 2.5 0 00-2.5-2.5H14" /></svg>
               <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Лента</span>
             </div>
+
             <div onClick={() => handleViewChange('messages')} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'messages' ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
               <svg className={`w-5 h-5 ${view === 'messages' ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
               <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Сообщения</span>
             </div>
+
             <div onClick={() => handleViewChange('notifications')} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'notifications' ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
               <svg className={`w-5 h-5 ${view === 'notifications' ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
               </svg>
               <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Уведомления</span>
             </div>
+
             <div onClick={() => handleViewChange('profile', user.username)} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'profile' && isOwnProfile ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
               <svg className={`w-5 h-5 ${view === 'profile' && isOwnProfile ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
               <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Профиль</span>
@@ -614,472 +542,363 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
             </div>
           </nav>
-          <div className="hidden lg:block mt-auto pt-4 border-t border-white/5">
-            <button onClick={onLogout} className="w-full bg-white/5 hover:bg-red-500/10 hover:text-red-500 text-gray-400 py-3 rounded-xl text-[11px] font-black uppercase transition-all duration-300 flex items-center justify-center gap-2">Выйти</button>
+
+          <div onClick={onLogout} className="hidden lg:flex mt-16 border-t border-white/5 pt-5 text-gray-600 hover:text-red-500 cursor-pointer transition-all items-center gap-3 px-2 group">
+            <svg className="w-5 h-5 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            <span className="text-[11px] font-black uppercase tracking-widest">Выход</span>
           </div>
         </aside>
 
-        {/* Главный блок контента */}
-        <main className={`flex-1 max-w-[680px] w-full animated-content ${animateContent ? 'visible' : ''} pb-16 lg:pb-0`}>
+        {/* Основной контент */}
+        <main className={`flex-1 w-full max-w-[680px] flex flex-col gap-4 md:gap-5 animated-content ${animateContent ? 'visible' : ''}`}>
           
-          {/* СООБЩЕНИЯ (ИНТЕРФЕЙС ЛС) */}
+          {/* РЕНДЕР СТРАНИЦЫ ЛС */}
           {view === 'messages' && (
-            <div className="glass-card rounded-[28px] border border-white/5 overflow-hidden flex flex-col h-[calc(100vh-120px)] lg:h-[750px] shadow-2xl">
-              <div className="flex flex-1 overflow-hidden">
-                
-                {/* Список чатов */}
-                <div className={`w-full md:w-[240px] border-r border-white/5 flex flex-col bg-black/20 ${activeChat ? 'hidden md:flex' : 'flex'}`}>
-                  <div className="p-4 border-b border-white/5">
-                    <h2 className="text-[14px] font-black uppercase tracking-wider text-gray-400">Диалоги</h2>
-                  </div>
-                  <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                    {chats.length === 0 ? (
-                      <div className="text-center py-8 text-gray-600 text-[11px] uppercase font-bold tracking-wider">Нет диалогов</div>
-                    ) : (
-                      chats.map((chat, idx) => {
-                        const isChatActive = activeChat?.username === chat.username;
+            <div className="glass-card rounded-2xl md:rounded-[32px] overflow-hidden shadow-2xl border-white/10 flex h-[75vh] md:h-[80vh] w-full">
+              
+              {/* Левая колонка: Список Чатов */}
+              <div className={`w-full md:w-2/5 border-r border-white/5 flex flex-col ${activeChat ? 'hidden md:flex' : 'flex'}`}>
+                <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                  <h1 className="text-lg md:text-xl font-black uppercase italic sss-logo tracking-tight">Чаты</h1>
+                </div>
+                <div className="flex-1 overflow-y-auto p-2 space-y-1 chat-scroll">
+                  {chats.length === 0 ? (
+                    <div className="text-center py-8 text-gray-600 font-bold text-xs uppercase tracking-wider">Чатов пока нет</div>
+                  ) : (
+                    chats.map(chat => (
+                      <div
+                        key={chat.username}
+                        onClick={() => {
+                          setActiveChat(chat);
+                          loadMessages(chat.username);
+                        }}
+                        className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${activeChat?.username === chat.username ? 'bg-white/5 border border-white/5' : 'hover:bg-white/[0.02] border border-transparent'}`}
+                      >
+                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getAvatarGradient(chat.username)} flex items-center justify-center text-white font-black text-sm uppercase flex-shrink-0 shadow-md`}>
+                          {chat.username.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-baseline mb-0.5">
+                            <span className="font-black text-xs uppercase tracking-tight text-white/90 truncate">{chat.username}</span>
+                            {chat.last_message_time && (
+                              <span className="text-[8px] text-gray-600 font-bold uppercase">{new Date(chat.last_message_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            )}
+                          </div>
+                          <p className="text-gray-500 font-medium text-xs truncate leading-tight">{chat.last_message || 'Нет сообщений'}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Правая колонка: Окно Открытого Чата */}
+              <div className={`flex-1 flex flex-col bg-black/20 ${!activeChat ? 'hidden md:flex items-center justify-center' : 'flex'}`}>
+                {activeChat ? (
+                  <>
+                    {/* Хедер чата */}
+                    <div className="p-4 border-b border-white/5 bg-white/[0.01] flex items-center gap-3 h-[60px] flex-shrink-0">
+                      <button onClick={() => setActiveChat(null)} className="md:hidden p-1.5 text-gray-400 hover:text-white mr-1 bg-white/5 rounded-lg">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                      </button>
+                      <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${getAvatarGradient(activeChat.username)} flex items-center justify-center text-white font-black text-xs uppercase shadow-sm`}>
+                        {activeChat.username.charAt(0)}
+                      </div>
+                      <div className="flex-1">
+                        <h2 className="font-black text-xs uppercase tracking-wider text-white/90 cursor-pointer" onClick={() => handleViewChange('profile', activeChat.username)}>{activeChat.username}</h2>
+                        <span className="text-[8px] text-gray-600 font-black uppercase tracking-widest">Диалог</span>
+                      </div>
+                    </div>
+
+                    {/* Сообщения */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3 chat-scroll bg-[#0b0b0b]/40">
+                      {messages.map((msg, idx) => {
+                        const isMe = msg.sender === user.username;
                         return (
-                          <div 
-                            key={idx}
-                            onClick={() => {
-                              setActiveChat(chat);
-                              loadMessages(chat.username);
-                            }}
-                            className={`p-3 rounded-xl cursor-pointer transition-all flex items-center gap-3 ${isChatActive ? 'bg-white/5 border border-white/10' : 'hover:bg-white/5 border border-transparent'}`}
-                          >
-                            <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${getAvatarGradient(chat.username)} flex items-center justify-center font-black text-[12px] uppercase text-white shadow-md`}>
-                              {chat.username.substring(0, 2)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex justify-between items-baseline">
-                                <span className="text-[13px] font-black truncate">{chat.username}</span>
+                          <div key={msg.id || idx} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl border text-[13px] leading-relaxed shadow-lg ${isMe ? 'bg-gradient-to-br from-[#ff2a5f]/15 to-[#7e22ce]/5 border-[#ff2a5f]/20 rounded-br-none text-white' : 'bg-white/5 border-white/5 rounded-bl-none text-gray-200'}`}>
+                              <p className="font-medium whitespace-pre-wrap break-words">{msg.content}</p>
+                              <div className="text-[8px] text-gray-600 font-bold uppercase mt-1 text-right tracking-tight select-none">
+                                {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...'}
                               </div>
-                              <p className="text-[11px] text-gray-500 truncate mt-0.5">{chat.lastMessage}</p>
                             </div>
                           </div>
                         );
-                      })
-                    )}
-                  </div>
-                </div>
-
-                {/* Окно чата */}
-                <div className={`flex-1 flex flex-col bg-black/10 ${!activeChat ? 'hidden md:flex items-center justify-center p-8' : 'flex'}`}>
-                  {activeChat ? (
-                    <>
-                      {/* Шапка чата */}
-                      <div className="p-4 border-b border-white/5 flex items-center gap-3 bg-black/20">
-                        <button 
-                          onClick={() => setActiveChat(null)}
-                          className="md:hidden text-gray-400 hover:text-white mr-1"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
-                          </svg>
-                        </button>
-                        <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${getAvatarGradient(activeChat.username)} flex items-center justify-center font-black text-[12px] uppercase text-white shadow-md`}>
-                          {activeChat.username.substring(0, 2)}
-                        </div>
-                        <div>
-                          <div className="text-[13px] font-black cursor-pointer hover:text-[#ff2a5f]" onClick={() => handleViewChange('profile', activeChat.username)}>
-                            {activeChat.username}
-                          </div>
-                          <div className="text-[9px] text-gray-500 uppercase font-black tracking-wider">В сети</div>
-                        </div>
-                      </div>
-
-                      {/* Сообщения */}
-                      <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col">
-                        {messages.map((msg, index) => {
-                          const isMyMsg = msg.sender === user.username;
-                          return (
-                            <div 
-                              key={index} 
-                              className={`max-w-[75%] rounded-[20px] p-3.5 text-[13px] ${isMyMsg 
-                                ? 'bg-gradient-to-br from-[#ff2a5f] to-[#7e22ce] text-white self-end rounded-tr-none shadow-lg shadow-[#ff2a5f]/10' 
-                                : 'bg-white/5 text-gray-200 self-start rounded-tl-none border border-white/5'}`}
-                            >
-                              <p className="leading-relaxed break-words">{msg.content}</p>
-                              <div className={`text-[9px] mt-1 text-right font-bold uppercase ${isMyMsg ? 'text-white/60' : 'text-gray-500'}`}>
-                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </div>
-                            </div>
-                          );
-                        })}
-                        <div ref={messagesEndRef} />
-                      </div>
-
-                      {/* Поле ввода */}
-                      <div className="p-3 border-t border-white/5 bg-black/20 flex gap-2 items-center">
-                        <input
-                          type="text"
-                          placeholder="Напишите сообщение..."
-                          value={messageInput}
-                          onChange={(e) => setMessageInput(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                          className="comment-input h-11 bg-white/5 border border-white/5 rounded-xl px-4"
-                        />
-                        <button 
-                          onClick={handleSendMessage}
-                          className="w-11 h-11 rounded-xl bg-white text-black flex items-center justify-center hover:bg-gray-200 transition-all active:scale-95 shrink-0"
-                        >
-                          <svg className="w-4 h-4 transform rotate-90 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                          </svg>
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center p-8 select-none">
-                      <svg className="w-12 h-12 text-gray-700 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
-                      <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-600">Выберите диалог для начала общения</p>
+                      })}
+                      <div ref={messagesEndRef} />
                     </div>
-                  )}
-                </div>
 
+                    {/* Поле ввода */}
+                    <div className="p-3 border-t border-white/5 bg-white/[0.01] flex gap-2 items-center flex-shrink-0">
+                      <input
+                        type="text"
+                        placeholder="Написать сообщение..."
+                        className="comment-input h-10 md:text-sm"
+                        value={messageInput}
+                        onChange={(e) => setMessageInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                      />
+                      <button onClick={handleSendMessage} className="bg-white text-black h-10 px-5 rounded-xl font-black text-[11px] uppercase hover:bg-gray-200 active:scale-95 transition-all flex items-center justify-center">Тык</button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 select-none opacity-40">
+                    <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                    </svg>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Выберите чат для общения</span>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          )}
+
+          {/* РЕНДЕР СТРАНИЦЫ УВЕДОМЛЕНИЙ */}
+          {view === 'notifications' && (
+            <div className="glass-card rounded-2xl md:rounded-[32px] overflow-hidden shadow-2xl border-white/10 min-h-[50vh] flex flex-col">
+              <div className="p-6 border-b border-white/5 text-center sm:text-left">
+                <h1 className="text-xl md:text-2xl font-black tracking-tight uppercase italic sss-logo">Уведомления</h1>
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none opacity-60 gap-4">
+                <svg className="w-12 h-12 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                </svg>
+                <div className="space-y-1">
+                  <p className="text-[13px] font-black uppercase tracking-widest text-white/90">Пока пусто</p>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider max-w-[250px] mx-auto">
+                    Здесь будут уведомления после подключения БД и бэкенда
+                  </p>
+                </div>
               </div>
             </div>
           )}
 
-          {/* УВЕДОМЛЕНИЯ */}
-          {view === 'notifications' && (
-            <div className="glass-card rounded-[28px] p-6 text-center border border-white/5 min-h-[300px] flex flex-col items-center justify-center select-none">
-              <svg className="w-10 h-10 text-gray-700 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              <p className="text-gray-600 font-black uppercase text-[11px] tracking-[0.2em]">Уведомлений пока нет</p>
+          {view === 'profile' && (
+            <div className="glass-card rounded-2xl md:rounded-[36px] overflow-hidden shadow-2xl border-white/10">
+              <div className="h-28 md:h-40 bg-gradient-to-br from-[#111] via-[#1a1a1a] to-[#080808]"></div>
+              <div className="px-4 md:px-8 pb-6 md:pb-8 relative">
+                
+                <div className="flex flex-col md:flex-row justify-between items-center md:items-end -mt-10 md:-mt-12 mb-6 gap-4">
+                  <div className="relative group">
+                    <div className={`w-24 h-24 md:w-28 md:h-28 rounded-2xl md:rounded-[28px] bg-gradient-to-br ${getAvatarGradient(profileData.username)} border-[4px] md:border-[5px] border-[#080808] flex items-center justify-center text-white font-black text-3xl md:text-4xl uppercase select-none shadow-2xl`}>
+                      {profileData.username ? profileData.username.charAt(0) : '?'}
+                    </div>
+                  </div>
+
+                  <div className="hidden md:flex gap-2 w-full md:w-auto justify-center items-center">
+                    <ActionButtons isMobile={false} />
+                  </div>
+                </div>
+
+                {/* Инфо-зона профиля */}
+                <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start text-center sm:text-left gap-4">
+                  <div className="space-y-2.5 w-full">
+                    {isEditing ? (
+                      <div className="flex flex-col gap-2 max-w-full sm:max-w-[260px] mx-auto sm:mx-0">
+                        <input className="edit-input font-black" value={profileData.username} onChange={(e) => setProfileData({...profileData, username: e.target.value})} placeholder="Имя" />
+                        <input className="edit-input text-gray-400" value={profileData.handle} onChange={(e) => setProfileData({...profileData, handle: e.target.value})} placeholder="Хэндл" />
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="flex items-center justify-center sm:justify-start gap-2">
+                          <h1 className={`text-xl md:text-2xl font-black tracking-tighter ${hasPremium ? 'premium-nick' : ''}`}>{profileData.username}</h1>
+                          <div className="w-4 h-4 bg-[#ff2a5f] rounded-full flex items-center justify-center text-[8px] text-white font-bold shadow-[0_0_10px_rgba(255,42,95,0.4)] flex-shrink-0">✓</div>
+                        </div>
+                        <p className="text-gray-500 font-bold text-xs md:text-sm">@{profileData.handle}</p>
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-center sm:justify-start gap-6 mt-3">
+                      <p className="text-xs md:text-sm"><span className="font-black text-white">{profileData.followers}</span> <span className="text-gray-500 font-bold uppercase text-[9px] tracking-wider ml-1">Подписчики</span></p>
+                      <p className="text-xs md:text-sm"><span className="font-black text-white">{profileData.following}</span> <span className="text-gray-500 font-bold uppercase text-[9px] tracking-wider ml-1">Подписки</span></p>
+                    </div>
+                    <div className="text-[9px] text-gray-600 font-black uppercase tracking-[0.15em] pt-1">
+                      <p className="leading-relaxed">Регистрация: {profileData.memberSince} <br className="sm:hidden" /> • Клан: {profileData.clan}</p>
+                    </div>
+                  </div>
+
+                  {/* Достижения */}
+                  <div className="bg-white/5 p-3 rounded-2xl border border-white/5 flex gap-2.5 h-fit justify-center">
+                      <div className="achievement-card w-9 h-9 bg-yellow-500/20 rounded-xl flex items-center justify-center text-lg">🏆</div>
+                      <div className="achievement-card w-9 h-9 bg-orange-500/20 rounded-xl flex items-center justify-center text-lg">🔥</div>
+                  </div>
+                </div>
+
+                {/* Мобильные кнопки */}
+                <div className="flex md:hidden gap-2 w-full mt-5 justify-center items-center">
+                  <ActionButtons isMobile={true} />
+                </div>
+
+                {/* Вкладки Записи/Репосты */}
+                <div className="flex mt-4 md:mt-6 p-1 bg-black/40 rounded-xl">
+                  <div onClick={() => handleTabChange('posts')} className={`flex-1 py-2.5 text-center rounded-lg font-black text-[11px] cursor-pointer uppercase transition-all ${activeTab === 'posts' ? 'bg-white/10 text-white' : 'text-gray-600 hover:text-gray-400'}`}>Записи</div>
+                  <div onClick={() => handleTabChange('reposts')} className={`flex-1 py-2.5 text-center rounded-lg font-black text-[11px] cursor-pointer uppercase transition-all ${activeTab === 'reposts' ? 'bg-white/10 text-white' : 'text-gray-600 hover:text-gray-400'}`}>Репосты</div>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* ЛЕНТА И ПРОФИЛЬ */}
-          {view !== 'messages' && view !== 'notifications' && (
-            <div className="space-y-6">
-              
-              {/* Шапка профиля */}
-              {view === 'profile' && (
-                <div className="glass-card rounded-[28px] p-5 md:p-7 relative overflow-hidden border border-white/5 shadow-2xl">
-                  <div className="absolute top-0 left-0 w-full h-[80px] md:h-[110px] bg-gradient-to-r from-[#ff2a5f]/10 to-[#7e22ce]/10 border-b border-white/5"></div>
-                  
-                  <div className="relative flex flex-col sm:flex-row items-center sm:items-end gap-4 md:gap-6 mt-4 md:mt-8">
-                    <div className={`w-20 h-20 md:w-28 md:h-28 rounded-[24px] md:rounded-[32px] bg-gradient-to-br ${getAvatarGradient(profileData.username)} flex items-center justify-center font-black text-2xl md:text-4xl text-white uppercase shadow-xl relative group shrink-0 border border-white/10`}>
-                      {profileData.username ? profileData.username.substring(0,2) : '??'}
-                      {hasPremium && (
-                        <div className="absolute -top-1 -right-1 bg-gradient-to-r from-[#ff2a5f] to-[#7e22ce] p-1 rounded-lg border border-black shadow-lg">
-                          <svg className="w-3 md:w-3.5 h-3 md:h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-                        </div>
-                      )}
-                    </div>
+          {view === 'feed' && (
+              <div className="px-2 mb-2"><h1 className="text-2xl md:text-3xl font-black tracking-tight uppercase italic sss-logo text-center sm:text-left">Global Stream</h1></div>
+          )}
 
-                    <div className="flex-1 text-center sm:text-left min-w-0 w-full">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
-                        <div className="min-w-0">
-                          {isEditing ? (
-                            <input
-                              type="text"
-                              className="edit-input font-black text-lg md:text-xl"
-                              value={profileData.username}
-                              onChange={(e) => setProfileData({ ...profileData, username: e.target.value })}
-                            />
-                          ) : (
-                            <h1 className="text-xl md:text-2xl font-black tracking-tight text-white truncate flex items-center justify-center sm:justify-start gap-2">
-                              <span className={hasPremium ? "premium-nick" : ""}>{profileData.username}</span>
-                            </h1>
-                          )}
-                          
-                          {isEditing ? (
-                            <input
-                              type="text"
-                              className="edit-input mt-1 text-xs text-gray-400"
-                              value={profileData.handle}
-                              onChange={(e) => setProfileData({ ...profileData, handle: e.target.value })}
-                            />
-                          ) : (
-                            <p className="text-[12px] font-bold text-gray-500 uppercase tracking-wider mt-0.5 truncate">@{profileData.handle || profileData.username}</p>
-                          )}
-                        </div>
+          {/* Создание нового поста */}
+          {view !== 'messages' && view !== 'notifications' && (view === 'feed' || (isOwnProfile && activeTab === 'posts')) && (
+            <div className="glass-card rounded-2xl md:rounded-[28px] p-4 md:p-6 shadow-xl relative">
+              <div className="flex gap-3 md:gap-4">
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getAvatarGradient(user.username)} flex items-center justify-center text-white font-black text-lg uppercase select-none flex-shrink-0`}>
+                  {user.username ? user.username.charAt(0) : '?'}
+                </div>
+                <textarea
+                  ref={postInputRef}
+                  placeholder="Что нового?"
+                  value={postText}
+                  onChange={(e) => setPostText(e.target.value)}
+                  className="flex-1 bg-transparent border-none outline-none text-sm md:text-[16px] py-1 resize-none h-16 placeholder:text-gray-800 text-white font-medium"
+                />
+              </div>
 
-                        {/* Кнопки десктоп */}
-                        <div className="hidden sm:flex items-center gap-2 shrink-0">
-                          <ActionButtons isMobile={false} />
-                        </div>
-                      </div>
-
-                      {/* Статистика */}
-                      <div className="flex justify-center sm:justify-start gap-6 mt-4 border-t border-white/5 pt-3">
-                        <div>
-                          <span className="text-[14px] font-black text-white">{profileData.followers}</span>
-                          <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider ml-1.5">подписчики</span>
-                        </div>
-                        <div>
-                          <span className="text-[14px] font-black text-white">{profileData.following}</span>
-                          <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider ml-1.5">подписки</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Кнопки мобилка */}
-                  <div className="flex sm:hidden items-center gap-1.5 mt-5 pt-4 border-t border-white/5 w-full">
-                    <ActionButtons isMobile={true} />
-                  </div>
+              {/* ЗОНА ДЛЯ ЭМОДЗИ ПОСТА */}
+              {showPostEmoji && (
+                <div className="emoji-bar mt-3 p-2.5 rounded-xl flex flex-wrap gap-2 max-h-24 overflow-y-auto chat-scroll animate-fadeIn">
+                  {EMOJI_LIST.map((emoji, i) => (
+                    <button 
+                      key={i} 
+                      onClick={() => addEmojiToPost(emoji)}
+                      className="emoji-item text-lg md:text-xl p-0.5 outline-none select-none"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
                 </div>
               )}
 
-              {/* Создание нового поста */}
-              {(view === 'feed' || isOwnProfile) && (
-                <div className="glass-card rounded-[24px] p-4 md:p-5 border border-white/5 shadow-xl relative">
-                  <div className="flex gap-4">
-                    <div className={`w-9 h-9 md:w-11 md:h-11 rounded-xl bg-gradient-to-br ${getAvatarGradient(user.username)} flex items-center justify-center font-black text-xs md:text-sm text-white uppercase shadow-md shrink-0`}>
-                      {user.username.substring(0, 2)}
+              <div className="flex justify-between items-center mt-3">
+                {/* Кнопка триггера эмодзи */}
+                <button 
+                  onClick={() => setShowPostEmoji(!showPostEmoji)}
+                  className={`p-2 rounded-xl transition-all border ${showPostEmoji ? 'bg-[#ff2a5f]/10 border-[#ff2a5f]/30 text-[#ff2a5f]' : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'}`}
+                  title="Выбрать эмодзи"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
+
+                <button onClick={handlePublish} className="bg-white text-black px-6 py-2.5 rounded-xl font-black text-[11px] uppercase hover:bg-gray-200 active:scale-95 transition-all">Опубликовать</button>
+              </div>
+            </div>
+          )}
+
+          {/* Лента Постов */}
+          {view !== 'messages' && view !== 'notifications' && (
+            <div className="flex flex-col gap-4 mb-16">
+              {posts.length > 0 ? (
+                posts.map((post) => (
+                  <div key={post.id} className="glass-card rounded-2xl md:rounded-[28px] p-4 md:p-6 transition-all group hover:border-white/10">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center gap-3">
+                        <div onClick={() => handleViewChange('profile', post.username)} className={`w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br ${getAvatarGradient(post.username)} flex items-center justify-center text-white font-black text-md uppercase select-none cursor-pointer hover:scale-105 transition-transform flex-shrink-0`}>
+                          {post.username ? post.username.charAt(0) : '?'}
+                        </div>
+                        <div>
+                          <p onClick={() => handleViewChange('profile', post.username)} className="font-black text-xs md:text-[13px] uppercase tracking-tight text-white/90 cursor-pointer hover:text-[#ff2a5f] transition-colors">{post.username}</p>
+                          <p className="text-[9px] text-gray-600 font-black uppercase mt-0.5">{post.created_at ? new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}</p>
+                        </div>
+                      </div>
+                      {(post.username === user.username || (isOwnProfile && activeTab === 'reposts')) && (
+                        <button onClick={() => handleDelete(post.id)} className="lg:opacity-0 lg:group-hover:opacity-100 p-2 text-gray-700 hover:text-red-500 transition-all cursor-pointer">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      )}
                     </div>
-                    <div className="flex-1 relative">
-                      <textarea
-                        ref={postInputRef}
-                        rows="3"
-                        placeholder="Что нового, босс? Напишите об этом..."
-                        value={postText}
-                        onChange={(e) => setPostText(e.target.value)}
-                        className="w-full bg-transparent text-white placeholder-gray-600 text-[14px] font-medium resize-none outline-none pt-1 md:pt-2"
-                      ></textarea>
-                      
-                      {/* Панель эмодзи */}
-                      {showPostEmoji && (
-                        <div className="absolute left-0 bottom-12 z-[100] glass-card border border-white/10 rounded-xl p-3 max-w-[280px] sm:max-w-[340px] shadow-2xl">
-                          <div className="grid grid-cols-7 gap-1.5 max-h-[140px] overflow-y-auto">
-                            {EMOJI_LIST.map((emoji, idx) => (
+                    <p className="pl-1 text-sm md:text-[15px] text-gray-300 leading-normal mb-5">{post.content}</p>
+                    
+                    {/* Кнопки взаимодействий */}
+                    <div className="flex items-center justify-between sm:justify-start gap-4 sm:gap-8 pt-3 border-t border-white/5">
+                      <button className={`interact-btn ${post.likes > 0 ? 'active' : ''}`} onClick={() => handleLike(post.id)}>
+                        <svg fill={post.likes > 0 ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+                        <span>{post.likes || 0}</span>
+                      </button>
+                      <button className={`interact-btn ${activePostComments[post.id] ? 'active text-white' : ''}`} onClick={() => toggleComments(post.id)}>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25-9 3.694-9 8.25c0 2.14.882 4.08 2.312 5.58.125.13.187.31.156.48l-.48 2.22c-.06.273.2.49.444.37l2.25-1.125c.15-.075.33-.075.48 0 1.05.525 2.22.825 3.45.825z" /></svg>
+                        <span>{post.comments_count || 0}</span>
+                      </button>
+                      <button onClick={() => handleRepost(post.id)} className={`interact-btn ${post.reposts > 0 ? 'text-blue-400' : ''}`}>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" /></svg>
+                        <span>{post.reposts || 0}</span>
+                      </button>
+                    </div>
+
+                    {/* Блок комментариев */}
+                    {activePostComments[post.id] && (
+                      <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
+                        <div className="flex flex-col gap-3 max-h-60 overflow-y-auto pr-2">
+                          {activePostComments[post.id].map(comment => (
+                            <div key={comment.id} className="bg-white/5 p-3 rounded-2xl border border-white/5">
+                              <div className="flex justify-between mb-1">
+                                <span className="text-[11px] font-black text-[#ff2a5f] uppercase">{comment.username}</span>
+                                <span className="text-[9px] text-gray-600 uppercase font-bold">{new Date(comment.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                              </div>
+                              <p className="text-[13px] text-gray-300">{comment.content}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* ПАНЕЛЬ ЭМОДЗИ ДЛЯ КОММЕНТАРИЕВ */}
+                        {showCommentEmoji[post.id] && (
+                          <div className="emoji-bar p-2 rounded-xl flex flex-wrap gap-1.5 max-h-20 overflow-y-auto chat-scroll animate-fadeIn">
+                            {EMOJI_LIST.map((emoji, i) => (
                               <button 
-                                key={idx} 
-                                onClick={() => addEmojiToPost(emoji)}
-                                className="text-[18px] p-1 rounded-md hover:bg-white/10 transition-all active:scale-90"
+                                key={i} 
+                                onClick={() => addEmojiToComment(post.id, emoji)}
+                                className="emoji-item text-base p-0.5 outline-none select-none"
                               >
                                 {emoji}
                               </button>
                             ))}
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/5">
-                        <div className="flex items-center gap-1">
+                        <div className="flex gap-2 items-center">
+                          {/* Переключатель эмодзи коммента */}
                           <button 
-                            onClick={() => setShowPostEmoji(!showPostEmoji)}
-                            className={`p-2 rounded-xl text-gray-500 hover:text-white transition-all ${showPostEmoji ? 'bg-white/5 text-white' : ''}`}
-                            title="Добавить эмодзи"
+                            onClick={() => setShowCommentEmoji(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
+                            className={`p-2.5 h-10 rounded-xl transition-all border ${showCommentEmoji[post.id] ? 'bg-[#ff2a5f]/10 border-[#ff2a5f]/30 text-[#ff2a5f]' : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'}`}
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                           </button>
-                          <button className="p-2 rounded-xl text-gray-500 hover:text-white transition-all" title="Загрузить медиа">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                          </button>
+
+                          <input
+                            ref={el => commentInputRefs.current[post.id] = el}
+                            type="text"
+                            placeholder="Написать... "
+                            className="comment-input h-10"
+                            value={commentInputs[post.id] || ''}
+                            onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSendComment(post.id)}
+                          />
+                          <button onClick={() => handleSendComment(post.id)} className="bg-white text-black h-10 px-4 rounded-xl font-black text-[10px] uppercase hover:bg-gray-200 flex items-center justify-center">OK</button>
                         </div>
-                        <button
-                          onClick={handlePublish}
-                          disabled={!postText.trim()}
-                          className="bg-white text-black disabled:bg-white/10 disabled:text-gray-600 px-5 h-9 rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-gray-200 transition-all duration-300 active:scale-95"
-                        >
-                          Опубликовать
-                        </button>
                       </div>
-                    </div>
+                    )}
                   </div>
-                </div>
+                ))
+              ) : (
+                view === 'profile' && (
+                  <div className="glass-card rounded-2xl md:rounded-[28px] p-8 text-center border-dashed border-white/5 select-none">
+                    <p className="text-gray-600 font-black uppercase text-[11px] tracking-[0.2em]">
+                      {activeTab === 'posts' 
+                        ? (isOwnProfile ? 'Вы еще не опубликовали ни одной записи' : 'Пользователь еще не опубликовал записи')
+                        : (isOwnProfile ? 'Вы еще не сделали ни одного репоста' : 'Пользователь еще не сделал ни одного репоста')
+                      }
+                    </p>
+                  </div>
+                )
               )}
-
-              {/* Переключатель вкладок внутри профиля */}
-              {view === 'profile' && (
-                <div className="flex border-b border-white/5 gap-6">
-                  <button
-                    onClick={() => handleTabChange('posts')}
-                    className={`pb-3 text-[11px] font-black uppercase tracking-wider relative transition-all ${activeTab === 'posts' ? 'text-white' : 'text-gray-500 hover:text-white'}`}
-                  >
-                    Записи
-                    {activeTab === 'posts' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#ff2a5f] rounded-full" />}
-                  </button>
-                  <button
-                    onClick={() => handleTabChange('reposts')}
-                    className={`pb-3 text-[11px] font-black uppercase tracking-wider relative transition-all ${activeTab === 'reposts' ? 'text-white' : 'text-gray-500 hover:text-white'}`}
-                  >
-                    Репосты
-                    {activeTab === 'reposts' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#ff2a5f] rounded-full" />}
-                  </button>
-                </div>
-              )}
-
-              {/* Вывод постов */}
-              <div className="space-y-4">
-                {posts.length > 0 ? (
-                  posts.map((post) => (
-                    <div key={post.id} className="glass-card rounded-[24px] p-4 md:p-5 border border-white/5 relative shadow-lg group">
-                      
-                      {/* Метка репоста */}
-                      {post.is_repost && (
-                        <div className="flex items-center gap-1.5 text-gray-500 text-[10px] font-black uppercase tracking-wider mb-3 pb-2 border-b border-white/5">
-                          <svg className="w-3.5 h-3.5 text-[#ff2a5f]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
-                          </svg>
-                          <span>Репост от @{post.reposted_by}</span>
-                        </div>
-                      )}
-
-                      <div className="flex justify-between items-start">
-                        <div className="flex gap-3 items-center cursor-pointer" onClick={() => handleViewChange('profile', post.username)}>
-                          <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gradient-to-br ${getAvatarGradient(post.username)} flex items-center justify-center font-black text-xs md:text-sm uppercase text-white shadow-md`}>
-                            {post.username.substring(0, 2)}
-                          </div>
-                          <div>
-                            <h4 className="text-[13px] md:text-[14px] font-black text-white hover:text-[#ff2a5f] transition-all flex items-center gap-1.5">
-                              <span>{post.username}</span>
-                            </h4>
-                            <span className="text-[9px] text-gray-600 uppercase font-black tracking-wider block mt-0.5">
-                              {new Date(post.created_at).toLocaleDateString()} в {new Date(post.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Кнопка удаления поста с вызовом модалки подтверждения */}
-                        {((isOwnProfile && activeTab === 'posts' && !post.is_repost) || 
-                          (isOwnProfile && activeTab === 'reposts' && post.is_repost) || 
-                          post.username === user.username) && (
-                          <button
-                            onClick={() => setPostToDelete(post.id)}
-                            className="text-gray-700 hover:text-red-500 p-1.5 rounded-xl hover:bg-red-500/5 transition-all opacity-0 group-hover:opacity-100"
-                            title="Удалить запись"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Текст поста */}
-                      <p className="text-[14px] text-gray-200 mt-3 whitespace-pre-wrap leading-relaxed select-text">{post.content}</p>
-
-                      {/* Кнопки взаимодействия */}
-                      <div className="flex gap-5 mt-4 pt-3 border-t border-white/5">
-                        <button onClick={() => handleLike(post.id)} className={`interact-btn ${post.is_liked ? 'active' : ''}`}>
-                          <svg fill={post.is_liked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                          </svg>
-                          <span>{post.likes_count || 0}</span>
-                        </button>
-
-                        <button onClick={() => toggleComments(post.id)} className={`interact-btn ${activePostComments[post.id] ? 'active' : ''}`}>
-                          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                          </svg>
-                          <span>{post.comments_count || 0}</span>
-                        </button>
-
-                        {!post.is_repost && (
-                          <button onClick={() => handleRepost(post.id)} className="interact-btn text-gray-500 hover:text-white">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                            </svg>
-                            <span>{post.reposts_count || 0}</span>
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Блок комментариев */}
-                      {activePostComments[post.id] && (
-                        <div className="mt-4 pt-4 border-t border-white/5 space-y-3 relative">
-                          <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
-                            {(activePostComments[post.id] || []).map((comment) => (
-                              <div key={comment.id} className="bg-white/[0.02] border border-white/5 p-3 rounded-2xl flex flex-col relative group/comment">
-                                <div className="flex justify-between items-start mb-1">
-                                  <div className="flex flex-col">
-                                    <span className="text-[11px] font-black text-[#ff2a5f] uppercase">{comment.username}</span>
-                                    <span className="text-[9px] text-gray-600 uppercase font-bold">
-                                      {new Date(comment.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                    </span>
-                                  </div>
-                                  
-                                  {/* КРЕСТИК ДЛЯ УДАЛЕНИЯ КОММЕНТАРИЯ С МОДАЛКОЙ */}
-                                  {(comment.username === user.username || post.username === user.username) && (
-                                    <button
-                                      onClick={() => setCommentToDelete({ postId: post.id, commentId: comment.id })}
-                                      className="text-gray-700 hover:text-red-500 p-1 rounded-lg hover:bg-red-500/5 transition-all opacity-0 group-hover/comment:opacity-100"
-                                      title="Удалить комментарий"
-                                    >
-                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                      </svg>
-                                    </button>
-                                  )}
-                                </div>
-                                <p className="text-[13px] text-gray-300 leading-normal select-text">{comment.content}</p>
-                              </div>
-                            ))}
-                          </div>
-                          
-                          {/* Панель эмодзи для комментариев */}
-                          {showCommentEmoji[post.id] && (
-                            <div className="absolute left-0 bottom-14 z-[100] glass-card border border-white/10 rounded-xl p-2.5 max-w-[260px] shadow-2xl">
-                              <div className="grid grid-cols-7 gap-1 max-h-[100px] overflow-y-auto">
-                                {EMOJI_LIST.map((emoji, idx) => (
-                                  <button 
-                                    key={idx} 
-                                    onClick={() => addEmojiToComment(post.id, emoji)}
-                                    className="text-[16px] p-0.5 rounded hover:bg-white/10 transition-all"
-                                  >
-                                    {emoji}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Форма отправки комментария */}
-                          <div className="flex gap-2 items-center relative">
-                            <button 
-                              onClick={() => setShowCommentEmoji(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
-                              className={`p-2 rounded-xl text-gray-500 hover:text-white transition-all shrink-0 ${showCommentEmoji[post.id] ? 'bg-white/5 text-white' : ''}`}
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                            </button>
-
-                            <input
-                              ref={el => commentInputRefs.current[post.id] = el}
-                              type="text"
-                              placeholder="Написать... "
-                              className="comment-input h-10"
-                              value={commentInputs[post.id] || ''}
-                              onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
-                              onKeyDown={(e) => e.key === 'Enter' && handleSendComment(post.id)}
-                            />
-                            <button 
-                              onClick={() => handleSendComment(post.id)} 
-                              className="bg-white text-black h-10 px-4 rounded-xl font-black text-[10px] uppercase hover:bg-gray-200 flex items-center justify-center transition-all active:scale-95"
-                            >
-                              OK
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  view === 'profile' && (
-                    <div className="glass-card rounded-2xl md:rounded-[28px] p-8 text-center border-dashed border-white/5 select-none">
-                      <p className="text-gray-600 font-black uppercase text-[11px] tracking-[0.2em]">
-                        {activeTab === 'posts' 
-                          ? (isOwnProfile ? 'Вы еще не опубликовали ни одной записи' : 'Пользователь еще не опубликовал записи')
-                          : (isOwnProfile ? 'Вы еще не сделали ни одного репоста' : 'Пользователь еще не сделал ни одного репоста')
-                        }
-                      </p>
-                    </div>
-                  )
-                )}
-              </div>
             </div>
           )}
         </main>

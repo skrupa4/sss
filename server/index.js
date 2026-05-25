@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 5000;
 
 // Гибкое подключение: если есть DATABASE_URL (на Render), берем её. Иначе — локальные настройки.
 const pool = new Pool({
-  connectionString: "postgresql://postgres:Kirilmaxim123@localhost:5432/sss_db?schema=public"
+  connectionString: "postgresql://postgres:Kirilmaxim123@localhost:5432/sss_db?schema=publicpostgresql://sss_db_5ki2_user:HCb45oLxq3GecBNIKp0v56CMPOUYc651@dpg-d89p9kh9rddc739g8sk0-a/sss_db_5ki2"
 });
 
 const initDB = async () => {

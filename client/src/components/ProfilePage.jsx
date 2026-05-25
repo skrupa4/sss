@@ -24,7 +24,7 @@ const getAvatarGradient = (username) => {
 const EMOJI_LIST = ['😀', '😂', '🤣', '😊', '😍', '😘', '😜', '😎', '🔥', '👑', '💎', '✨', '💀', '🤡', '💩', '👻', '👾', '👿', '❤️', '💔', '💯', '👍', '👎', '✊', '✌️', '🚀', '💵', '🪐'];
 
 const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
-  const hasPremium = true;
+  const hasPremium = false;
 
   const [view, setView] = useState('profile'); // 'profile' | 'feed' | 'messages' | 'notifications'
   const [postText, setPostText] = useState('');

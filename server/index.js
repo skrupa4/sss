@@ -13,17 +13,9 @@ app.use(express.json());
 const PORT = process.env.PORT || 5000;
 
 // Гибкое подключение: если есть DATABASE_URL (на Render), берем её. Иначе — локальные настройки.
-const pool = new Pool(
-  process.env.DATABASE_URL
-    ? { connectionString: process.env.DATABASE_URL }
-    : {
-        user: 'postgres',
-        host: 'db',
-        database: 'sss_db',
-        password: 'Kirilmaxim123',
-        port: 5432,
-      }
-);
+const pool = new Pool({
+  connectionString: "postgresql://postgres:Kirilmaxim123@localhost:5432/sss_db?schema=public"
+});
 
 const initDB = async () => {
   try {

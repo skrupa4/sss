@@ -436,30 +436,56 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         .animated-content.visible { opacity: 1; transform: translateY(0); }
 
         /* =========================================================================
-           ПОМЕТКА: ЭТОТ ДИЗАЙН ЗАГРУЗКИ (РОМБ) НЕЛЬЗЯ ТРОГАТЬ И МЕНЯТЬ В БУДУЩЕМ! 
-           Сделано строго по концепту: крутящийся ромб, у которого светится и 
-           меняется грань в процессе вращения.
+           ОБНОВЛЕННЫЙ ДИЗАЙН ЗАГРУЗКИ (РОМБ) ПОД СТИЛЬ SSS С ДИНАМИЧЕСКИМИ ГРАНЯМИ
            ========================================================================= */
         .glowing-rhombus {
           width: 48px;
           height: 48px;
-          border: 2px solid rgba(255, 255, 255, 0.1);
           transform: rotate(45deg);
           position: relative;
-          animation: spin-rhombus 1.8s linear infinite;
+          background: transparent;
         }
+        
+        /* Эффект переливающегося неонового градиента по контуру всего ромба */
+        .glowing-rhombus::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: 2px;
+          padding: 2px; /* Толщина рамки */
+          background: linear-gradient(90deg, #ff2a5f, #7e22ce, #ff2a5f);
+          background-size: 200% auto;
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          animation: flow 2s linear infinite, spin-rhombus 2s linear infinite;
+        }
+
+        /* Имитация загорающихся и гаснущих граней при вращении */
         .glowing-rhombus::after {
           content: '';
           position: absolute;
-          top: -2px; left: -2px; right: -2px; bottom: -2px;
-          border: 2px solid transparent;
-          border-top: 3px solid #b347ff; /* Фиолетовое свечение одной грани */
-          box-shadow: inset 0 8px 15px -4px rgba(179, 71, 255, 0.5), 0 -8px 20px -4px rgba(179, 71, 255, 0.8);
-          border-radius: 1px;
+          inset: -2px;
+          border: 3px solid transparent;
+          border-radius: 2px;
+          /* Изначально подсвечиваем верхнюю грань фирменным цветом */
+          border-top-color: #ff2a5f; 
+          filter: drop-shadow(0 0 6px #ff2a5f) drop-shadow(0 0 12px #7e22ce);
+          animation: spin-rhombus 2s linear infinite, switch-edges 2s steps(4) infinite;
         }
+
         @keyframes spin-rhombus {
-          0% { transform: rotate(45deg); }
-          100% { transform: rotate(405deg); }
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        /* Каждые 25% цикла (угол поворота на 90 градусов) активная светящаяся сторона смещается */
+        @keyframes switch-edges {
+          0% { border-color: transparent; border-top-color: #ff2a5f; filter: drop-shadow(0 0 8px #ff2a5f); }
+          25% { border-color: transparent; border-right-color: #be39b3; filter: drop-shadow(0 0 8px #be39b3); }
+          50% { border-color: transparent; border-bottom-color: #7e22ce; filter: drop-shadow(0 0 8px #7e22ce); }
+          75% { border-color: transparent; border-left-color: #be39b3; filter: drop-shadow(0 0 8px #be39b3); }
+          100% { border-color: transparent; border-top-color: #ff2a5f; filter: drop-shadow(0 0 8px #ff2a5f); }
         }
         /* ========================================================================= */
 

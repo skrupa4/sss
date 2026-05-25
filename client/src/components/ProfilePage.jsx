@@ -55,7 +55,7 @@ const [profileData, setProfileData] = useState({
     followers: 0,
     following: 0,
     memberSince: 'Май 2026',
-    clan: 'SSS OWNER',
+    clan: 'Отсутствует',
     isSubscribed: false,
     is_verified: false
   });

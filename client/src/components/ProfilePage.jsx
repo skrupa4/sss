@@ -117,7 +117,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
           }
         }
       } catch (err) { 
-        console.error("Ошибка保存:", err);
+        console.error("Ошибка сохранения:", err);
       }
     }
     setIsEditing(!isEditing);
@@ -262,7 +262,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         .premium-nick { background: linear-gradient(90deg, #ff2a5f, #7e22ce, #ff2a5f); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: flow 3s linear infinite; }
         .glass-card { background: rgba(15, 15, 15, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.04); }
         .sss-logo { background: linear-gradient(135deg, #fff 0%, #ff2a5f 50%, #7e22ce 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 8px rgba(255, 42, 95, 0.4)); }
-        .edit-input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 4px 10px; outline: none; width: 100%; color: white; font-size: 14px; }
+        .edit-input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 6px 10px; outline: none; width: 100%; color: white; font-size: 14px; }
         .achievement-card { transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer; }
         .achievement-card:hover { transform: translateY(-5px) rotate(-8deg) scale(1.1); box-shadow: 0 10px 20px rgba(255, 42, 95, 0.2); }
         .interact-btn { display: flex; align-items: center; gap: 6px; color: #444; transition: all 0.2s; cursor: pointer; border: none; background: none; outline: none; }
@@ -347,19 +347,41 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                   </div>
 
                   {/* Кнопки действий */}
-                  <div className="flex gap-2 w-full md:w-auto justify-center">
+                  <div className="flex gap-2 w-full md:w-auto justify-center items-center">
                     {isOwnProfile ? (
-                      <button onClick={handleSaveProfile} className={`flex-1 md:flex-none px-4 md:px-5 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all border ${isEditing ? 'bg-[#ff2a5f] border-[#ff2a5f] text-white' : 'bg-white/5 border-white/10 text-white hover:bg-white hover:text-black'}`}>
-                        {isEditing ? 'Сохранить' : 'Редактировать'}
-                      </button>
+                      <>
+                        {/* Адаптивная Кнопка Редактировать / Сохранить */}
+                        <button 
+                          onClick={handleSaveProfile} 
+                          className={`flex-1 md:flex-none px-4 md:px-5 h-11 md:h-auto rounded-xl text-[10px] font-black uppercase transition-all border flex items-center justify-center gap-2
+                            ${isEditing 
+                              ? 'bg-[#ff2a5f] border-[#ff2a5f] text-white shadow-lg shadow-[#ff2a5f]/20' 
+                              : 'bg-white/5 border-white/10 text-white hover:bg-white hover:text-black'
+                            }`}
+                        >
+                          {/* Иконка видна всегда на мобилках, на десктопе опционально */}
+                          {isEditing ? (
+                            <svg className="w-4 h-4 md:w-3.5 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : (
+                            <svg className="w-4 h-4 md:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          )}
+                          <span className={`${isEditing ? 'inline' : 'hidden md:inline'}`}>
+                            {isEditing ? 'Сохранить' : 'Редактировать'}
+                          </span>
+                        </button>
+                      </>
                     ) : (
                       <button 
                         onClick={handleFollow} 
-                        className={`flex-1 md:flex-none px-5 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all cursor-pointer border ${profileData.isSubscribed ? 'bg-white/5 border-white/10 text-white' : 'bg-[#ff2a5f] border-[#ff2a5f] text-white shadow-lg shadow-[#ff2a5f]/20 hover:scale-105 active:scale-95'}`}>
+                        className={`flex-1 md:flex-none px-5 py-2.5 h-11 md:h-auto rounded-xl text-[10px] font-black uppercase transition-all cursor-pointer border ${profileData.isSubscribed ? 'bg-white/5 border-white/10 text-white' : 'bg-[#ff2a5f] border-[#ff2a5f] text-white shadow-lg shadow-[#ff2a5f]/20 hover:scale-105 active:scale-95'}`}>
                         {profileData.isSubscribed ? 'Отписаться' : 'Подписаться'}
                       </button>
                     )}
-                    <button className="bg-gradient-to-r from-[#ff2a5f] to-[#7e22ce] text-white px-4 md:px-5 py-2.5 rounded-xl text-[10px] font-black uppercase shadow-lg shadow-[#ff2a5f]/20">Premium</button>
+                    <button className="flex-1 md:flex-none bg-gradient-to-r from-[#ff2a5f] to-[#7e22ce] text-white px-4 md:px-5 py-2.5 h-11 md:h-auto rounded-xl text-[10px] font-black uppercase shadow-lg shadow-[#ff2a5f]/20 text-center">Premium</button>
                   </div>
                 </div>
 
@@ -483,7 +505,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                     <div className="flex gap-2">
                       <input 
                         type="text" 
-                        placeholder="Написать комментарий..." 
+                        placeholder="Написать... " 
                         className="comment-input"
                         value={commentInputs[post.id] || ''}
                         onChange={(e) => setCommentInputs({ ...commentInputs, [post.id]: e.target.value })}

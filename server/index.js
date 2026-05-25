@@ -13,8 +13,6 @@ app.use(express.json());
 const PORT = process.env.PORT || 5000;
 
 // Автоматическое переключение баз:
-// Если развернуто на Render (есть DATABASE_URL в Environment), берём её и включаем SSL.
-// Если запустил локально, берём локальную строку.
 const isProduction = process.env.DATABASE_URL;
 
 const pool = isProduction
@@ -30,7 +28,7 @@ const pool = isProduction
 
 const initDB = async () => {
   try {
-    // Таблица юзеров
+    // Таблица юзеров (Добавлено поле is_verified)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -43,7 +41,8 @@ const initDB = async () => {
         following INTEGER DEFAULT 0,
         member_since TEXT DEFAULT 'Май 2026',
         clan TEXT DEFAULT 'SSS OWNER',
-        is_premium BOOLEAN DEFAULT true
+        is_premium BOOLEAN DEFAULT true,
+        is_verified BOOLEAN DEFAULT false -- <-- ДОБАВИЛИ ПОЛЕ ДЛЯ ГАЛОЧКИ ТУТ
       );
     `);
     
@@ -209,19 +208,32 @@ app.delete('/api/users/:username/follow', async (req, res) => {
 
 // --- ПОСТЫ И ЛЕНТА ---
 
+// Изменено: Добавлен LEFT JOIN, чтобы брать is_verified из таблицы пользователей для общей ленты
 app.get('/api/posts', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM posts ORDER BY created_at DESC');
+    const result = await pool.query(`
+      SELECT p.*, u.is_verified 
+      FROM posts p 
+      LEFT JOIN users u ON p.username = u.username 
+      ORDER BY p.created_at DESC
+    `);
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// Изменено: Добавлен LEFT JOIN для постов конкретного юзера
 app.get('/api/posts/user/:username', async (req, res) => {
   const { username } = req.params;
   try {
-    const result = await pool.query('SELECT * FROM posts WHERE username = $1 ORDER BY created_at DESC', [username]);
+    const result = await pool.query(`
+      SELECT p.*, u.is_verified 
+      FROM posts p 
+      LEFT JOIN users u ON p.username = u.username 
+      WHERE p.username = $1 
+      ORDER BY p.created_at DESC
+    `, [username]);
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: "Ошибка при получении постов" });
@@ -236,7 +248,13 @@ app.post('/api/posts', async (req, res) => {
       [username, content]
     );
     await pool.query('UPDATE users SET rating = rating + 1 WHERE username = $1', [username]);
-    res.json(result.rows[0]);
+    
+    // Чтобы фронтенд сразу получал созданный пост со статусом галочки:
+    const userCheck = await pool.query('SELECT is_verified FROM users WHERE username = $1', [username]);
+    const savedPost = result.rows[0];
+    savedPost.is_verified = userCheck.rows[0]?.is_verified || false;
+
+    res.json(savedPost);
   } catch (err) {
     res.status(500).json({ error: "Ошибка публикации" });
   }
@@ -289,14 +307,16 @@ app.delete('/api/posts/:id/repost', async (req, res) => {
   }
 });
 
+// Изменено: Добавлен LEFT JOIN для подтягивания галочки оригинального автора в репостах
 app.get('/api/posts/reposts/:username', async (req, res) => {
   const { username } = req.params;
   try {
     const result = await pool.query(`
-      SELECT posts.* FROM posts 
-      INNER JOIN reposts ON posts.id = reposts.post_id 
-      WHERE reposts.username = $1 
-      ORDER BY reposts.created_at DESC
+      SELECT p.*, u.is_verified FROM posts p
+      INNER JOIN reposts r ON p.id = r.post_id 
+      LEFT JOIN users u ON p.username = u.username
+      WHERE r.username = $1 
+      ORDER BY r.created_at DESC
     `, [username]);
     res.json(result.rows);
   } catch (err) {

@@ -410,9 +410,9 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white flex justify-center items-start pt-4 md:pt-8 px-3 md:px-6 pb-24 lg:pb-8 antialiased"
+       <div className="min-h-screen bg-[#080808] text-white flex justify-center items-start pt-4 md:pt-8 px-3 md:px-6 pb-24 lg:pb-8 antialiased"
          style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
-       
+      
       <style>{`
         @keyframes flow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         .premium-nick { background: linear-gradient(90deg, #ff2a5f, #7e22ce, #ff2a5f); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: flow 3s linear infinite; }
@@ -439,16 +439,13 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         /* Кастомный неоновый спиннер */
         .neon-spinner { width: 40px; height: 40px; border: 3px border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.03); border-top-color: #ff2a5f; animation: spin 0.8s linear infinite; filter: drop-shadow(0 0 6px #ff2a5f); }
         @keyframes spin { to { transform: rotate(360deg); } }
-
       `}</style>
 
-      {/* =========================================================================
-          ПОМЕТКА: ЭТОТ БЛОК ЗАГРУЗКИ НЕЛЬЗЯ ТРОГАТЬ И МЕНЯТЬ В БУДУЩЕМ!
-          ========================================================================= */}
+      {/* КРАСИВЫЙ ПЛАВНЫЙ ЭКРАН ЗАГРУЗКИ */}
       {shouldRenderLoader && (
-        <div className={`fixed inset-0 bg-[#080808] z-[9999] flex flex-col gap-8 items-center justify-center fade-loader ${!isLoading ? 'hidden' : ''}`}>
-          <div className="glowing-rhombus"></div>
-          <div className="text-gray-500 font-black uppercase text-[10px] tracking-[0.3em] mt-1">Загрузка...</div>
+        <div className={`fixed inset-0 bg-[#080808] z-[9999] flex flex-col gap-4 items-center justify-center fade-loader ${!isLoading ? 'hidden' : ''}`}>
+          <div className="neon-spinner"></div>
+          <div className="text-gray-500 font-black uppercase text-[10px] tracking-[0.25em] sss-logo">Загрузка данных...</div>
         </div>
       )}
       {/* ========================================================================= */}

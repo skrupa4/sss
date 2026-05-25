@@ -20,6 +20,9 @@ const getAvatarGradient = (username) => {
   return gradients[charCodeSum % gradients.length];
 };
 
+// Набор популярных эмодзи для быстрой вставки
+const EMOJI_LIST = ['😀', '😂', '🤣', '😊', '😍', '😘', '😜', '😎', '🔥', '👑', '💎', '✨', '💀', '🤡', '💩', '👻', '👾', '👿', '❤️', '💔', '💯', '👍', '👎', '✊', '✌️', '🚀', '💵', '🪐'];
+
 const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   const hasPremium = true;
 
@@ -30,6 +33,14 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [activePostComments, setActivePostComments] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
+
+  // Состояния для переключателей панелей эмодзи
+  const [showPostEmoji, setShowPostEmoji] = useState(false);
+  const [showCommentEmoji, setShowCommentEmoji] = useState({}); // { [postId]: boolean }
+
+  // Рефы для точной вставки эмодзи по позиции курсора
+  const postInputRef = useRef(null);
+  const commentInputRefs = useRef({}); // { [postId]: element }
 
   const [currentProfile, setCurrentProfile] = useState(user.username);
   const isOwnProfile = currentProfile === user.username;
@@ -50,7 +61,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
 
   // СОСТОЯНИЯ ДЛЯ ЛИЧНЫХ СООБЩЕНИЙ
   const [chats, setChats] = useState([]);
-  const [activeChat, setActiveChat] = useState(null); // Содержит объект чата/собеседника
+  const [activeChat, setActiveChat] = useState(null); 
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
   const messagesEndRef = useRef(null);
@@ -101,7 +112,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         if (activeChat) {
           loadMessages(activeChat.username);
         }
-      }, 4000); // Полуллинг каждые 4 секунды
+      }, 4000); 
       return () => clearInterval(interval);
     }
   }, [view, activeChat, loadChats, loadMessages]);
@@ -109,7 +120,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !activeChat) return;
     const textToSend = messageInput;
-    setMessageInput(''); // Оптимистично очищаем инпут
+    setMessageInput(''); 
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/messages`, {
@@ -124,7 +135,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
       if (res.ok) {
         const newMsg = await res.json();
         setMessages(prev => [...prev, newMsg]);
-        loadChats(); // Обновляем список чатов, чтобы поднять текущий наверх
+        loadChats(); 
       }
     } catch (err) {
       console.error("Ошибка отправки сообщения:", err);
@@ -266,6 +277,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
           setPosts(prev => [savedPost, ...prev]);
         }
         setPostText('');
+        setShowPostEmoji(false);
       }
     } catch (err) { console.error("Ошибка публикации:", err); }
   };
@@ -289,6 +301,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
       const newComments = { ...activePostComments };
       delete newComments[postId];
       setActivePostComments(newComments);
+      setShowCommentEmoji(prev => ({ ...prev, [postId]: false }));
     } else {
       try {
         const res = await fetch(`${API_BASE_URL}/api/posts/${postId}/comments`);
@@ -315,6 +328,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         }));
         setPosts(prev => prev.map(p => p.id === postId ? { ...p, comments_count: (p.comments_count || 0) + 1 } : p));
         setCommentInputs(prev => ({ ...prev, [postId]: '' }));
+        setShowCommentEmoji(prev => ({ ...prev, [postId]: false }));
       }
     } catch (err) { console.error(err); }
   };
@@ -350,6 +364,47 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         setPosts(prev => prev.filter(p => p.id !== postId));
       }
     } catch (err) { console.error(err); }
+  };
+
+  // Вставка эмодзи в текстовое поле поста с сохранением фокуса курсора
+  const addEmojiToPost = (emoji) => {
+    const textarea = postInputRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const before = text.substring(0, start);
+    const after = text.substring(end, text.length);
+
+    setPostText(before + emoji + after);
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+    }, 0);
+  };
+
+  // Вставка эмодзи в поле комментария конкретного поста
+  const addEmojiToComment = (postId, emoji) => {
+    const input = commentInputRefs.current[postId];
+    if (!input) return;
+
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const text = commentInputs[postId] || '';
+    const before = text.substring(0, start);
+    const after = text.substring(end, text.length);
+
+    setCommentInputs(prev => ({
+      ...prev,
+      [postId]: before + emoji + after
+    }));
+
+    setTimeout(() => {
+      input.focus();
+      input.selectionStart = input.selectionEnd = start + emoji.length;
+    }, 0);
   };
 
   const ActionButtons = ({ isMobile = false }) => {
@@ -392,7 +447,6 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
               {profileData.isSubscribed ? 'Отписаться' : 'Подписаться'}
             </button>
             
-            {/* КНОПКА ОТКРЫТИЯ ЛС ИЗ ПРОФИЛЯ */}
             <button
               onClick={() => handleOpenChatFromProfile(profileData.username)}
               className={`btn-fixed flex-1 bg-white/5 border-white/10 text-white hover:bg-white hover:text-black ${isMobile ? 'px-3 py-1.5 h-8 rounded-lg text-[9px]' : 'md:flex-none px-5 py-2.5 h-11 rounded-xl text-[10px]'} font-black uppercase transition-all flex items-center justify-center gap-1.5`}
@@ -410,9 +464,9 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   };
 
   return (
-       <div className="min-h-screen bg-[#080808] text-white flex justify-center items-start pt-4 md:pt-8 px-3 md:px-6 pb-24 lg:pb-8 antialiased"
+    <div className="min-h-screen bg-[#080808] text-white flex justify-center items-start pt-4 md:pt-8 px-3 md:px-6 pb-24 lg:pb-8 antialiased"
          style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
-      
+       
       <style>{`
         @keyframes flow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         .premium-nick { background: linear-gradient(90deg, #ff2a5f, #7e22ce, #ff2a5f); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: flow 3s linear infinite; }
@@ -429,23 +483,76 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         .comment-input { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 8px 12px; width: 100%; outline: none; color: white; font-size: 13px; }
         .btn-fixed { flex-shrink: 0 !important; white-space: nowrap !important; }
 
-        /* ПЛАВНЫЕ КЛАССЫ ДЛЯ АНИМАЦИИ */
         .fade-loader { transition: opacity 0.30s ease-in-out, visibility 0.30s; opacity: 1; visibility: visible; }
         .fade-loader.hidden { opacity: 0; visibility: hidden; }
-        
+         
         .animated-content { opacity: 0; transform: translateY(10px); transition: opacity 0.4s cubic-bezier(0.215, 0.610, 0.355, 1), transform 0.4s cubic-bezier(0.215, 0.610, 0.355, 1); }
         .animated-content.visible { opacity: 1; transform: translateY(0); }
+
+        .glowing-rhombus {
+          width: 48px;
+          height: 48px;
+          transform: rotate(45deg);
+          position: relative;
+          background: transparent;
+        }
         
-        /* Кастомный неоновый спиннер */
-        .neon-spinner { width: 40px; height: 40px; border: 3px border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.03); border-top-color: #ff2a5f; animation: spin 0.8s linear infinite; filter: drop-shadow(0 0 6px #ff2a5f); }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .glowing-rhombus::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: 2px;
+          padding: 2px; 
+          background: linear-gradient(90deg, #ff2a5f, #7e22ce, #ff2a5f);
+          background-size: 200% auto;
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          animation: flow 2s linear infinite, spin-rhombus 2s linear infinite;
+        }
+
+        .glowing-rhombus::after {
+          content: '';
+          position: absolute;
+          inset: -2px;
+          border: 3px solid transparent;
+          border-radius: 2px;
+          border-top-color: #ff2a5f; 
+          filter: drop-shadow(0 0 6px #ff2a5f) drop-shadow(0 0 12px #7e22ce);
+          animation: spin-rhombus 2s linear infinite, switch-edges 2s steps(4) infinite;
+        }
+
+        @keyframes spin-rhombus {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        @keyframes switch-edges {
+          0% { border-color: transparent; border-top-color: #ff2a5f; filter: drop-shadow(0 0 8px #ff2a5f); }
+          25% { border-color: transparent; border-right-color: #be39b3; filter: drop-shadow(0 0 8px #be39b3); }
+          50% { border-color: transparent; border-bottom-color: #7e22ce; filter: drop-shadow(0 0 8px #7e22ce); }
+          75% { border-color: transparent; border-left-color: #be39b3; filter: drop-shadow(0 0 8px #be39b3); }
+          100% { border-color: transparent; border-top-color: #ff2a5f; filter: drop-shadow(0 0 8px #ff2a5f); }
+        }
+
+        .chat-scroll::-webkit-scrollbar { width: 4px; }
+        .chat-scroll::-webkit-scrollbar-track { background: transparent; }
+        .chat-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.05); border-radius: 99px; }
+        .chat-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 42, 95, 0.3); }
+
+        /* Стили контейнера эмодзи под стиль SSS */
+        .emoji-bar { background: rgba(10, 10, 10, 0.95); border: 1px solid rgba(255, 255, 255, 0.06); box-shadow: inset 0 0 10px rgba(255, 42, 95, 0.05); }
+        .emoji-item { transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .emoji-item:hover { transform: scale(1.3); }
       `}</style>
 
-      {/* КРАСИВЫЙ ПЛАВНЫЙ ЭКРАН ЗАГРУЗКИ */}
+      {/* =========================================================================
+          ПОМЕТКА: ЭТОТ БЛОК ЗАГРУЗКИ НЕЛЬЗЯ ТРОГАТЬ И МЕНЯТЬ В БУДУЩЕМ!
+          ========================================================================= */}
       {shouldRenderLoader && (
-        <div className={`fixed inset-0 bg-[#080808] z-[9999] flex flex-col gap-4 items-center justify-center fade-loader ${!isLoading ? 'hidden' : ''}`}>
-          <div className="neon-spinner"></div>
-          <div className="text-gray-500 font-black uppercase text-[10px] tracking-[0.25em] sss-logo">Загрузка данных...</div>
+        <div className={`fixed inset-0 bg-[#080808] z-[9999] flex flex-col gap-8 items-center justify-center fade-loader ${!isLoading ? 'hidden' : ''}`}>
+          <div className="glowing-rhombus"></div>
+          <div className="text-gray-500 font-black uppercase text-[10px] tracking-[0.3em] mt-1">Загрузка...</div>
         </div>
       )}
       {/* ========================================================================= */}
@@ -463,7 +570,6 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
               <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Лента</span>
             </div>
 
-            {/* ВКЛАДКА ЛС В СAЙДБАРЕ */}
             <div onClick={() => handleViewChange('messages')} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'messages' ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
               <svg className={`w-5 h-5 ${view === 'messages' ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -471,7 +577,6 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
               <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Сообщения</span>
             </div>
 
-            {/* ВКЛАДКА УВЕДОМЛЕНИЙ В САЙДБАРЕ */}
             <div onClick={() => handleViewChange('notifications')} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'notifications' ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
               <svg className={`w-5 h-5 ${view === 'notifications' ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
@@ -543,7 +648,6 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                   <>
                     {/* Хедер чата */}
                     <div className="p-4 border-b border-white/5 bg-white/[0.01] flex items-center gap-3 h-[60px] flex-shrink-0">
-                      {/* Кнопка Назад для мобилки */}
                       <button onClick={() => setActiveChat(null)} className="md:hidden p-1.5 text-gray-400 hover:text-white mr-1 bg-white/5 rounded-lg">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
                       </button>
@@ -625,7 +729,6 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
               <div className="h-28 md:h-40 bg-gradient-to-br from-[#111] via-[#1a1a1a] to-[#080808]"></div>
               <div className="px-4 md:px-8 pb-6 md:pb-8 relative">
                 
-                {/* ТЕКСТОВАЯ АВАТАРКА С ГРАДИЕНТОМ ИЗ ИНИЦИАЛОВ */}
                 <div className="flex flex-col md:flex-row justify-between items-center md:items-end -mt-10 md:-mt-12 mb-6 gap-4">
                   <div className="relative group">
                     <div className={`w-24 h-24 md:w-28 md:h-28 rounded-2xl md:rounded-[28px] bg-gradient-to-br ${getAvatarGradient(profileData.username)} border-[4px] md:border-[5px] border-[#080808] flex items-center justify-center text-white font-black text-3xl md:text-4xl uppercase select-none shadow-2xl`}>
@@ -690,27 +793,55 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
               <div className="px-2 mb-2"><h1 className="text-2xl md:text-3xl font-black tracking-tight uppercase italic sss-logo text-center sm:text-left">Global Stream</h1></div>
           )}
 
-          {/* Создание нового поста (Скрыто в режиме сообщений и уведомлений) */}
+          {/* Создание нового поста */}
           {view !== 'messages' && view !== 'notifications' && (view === 'feed' || (isOwnProfile && activeTab === 'posts')) && (
-            <div className="glass-card rounded-2xl md:rounded-[28px] p-4 md:p-6 shadow-xl">
+            <div className="glass-card rounded-2xl md:rounded-[28px] p-4 md:p-6 shadow-xl relative">
               <div className="flex gap-3 md:gap-4">
                 <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getAvatarGradient(user.username)} flex items-center justify-center text-white font-black text-lg uppercase select-none flex-shrink-0`}>
                   {user.username ? user.username.charAt(0) : '?'}
                 </div>
                 <textarea
+                  ref={postInputRef}
                   placeholder="Что нового?"
                   value={postText}
                   onChange={(e) => setPostText(e.target.value)}
                   className="flex-1 bg-transparent border-none outline-none text-sm md:text-[16px] py-1 resize-none h-16 placeholder:text-gray-800 text-white font-medium"
                 />
               </div>
-              <div className="flex justify-end mt-2">
-                <button onClick={handlePublish} className="w-full sm:w-auto bg-white text-black px-6 py-2.5 rounded-xl font-black text-[11px] uppercase hover:bg-gray-200 active:scale-95 transition-all">Опубликовать</button>
+
+              {/* ЗОНА ДЛЯ ЭМОДЗИ ПОСТА */}
+              {showPostEmoji && (
+                <div className="emoji-bar mt-3 p-2.5 rounded-xl flex flex-wrap gap-2 max-h-24 overflow-y-auto chat-scroll animate-fadeIn">
+                  {EMOJI_LIST.map((emoji, i) => (
+                    <button 
+                      key={i} 
+                      onClick={() => addEmojiToPost(emoji)}
+                      className="emoji-item text-lg md:text-xl p-0.5 outline-none select-none"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-between items-center mt-3">
+                {/* Кнопка триггера эмодзи */}
+                <button 
+                  onClick={() => setShowPostEmoji(!showPostEmoji)}
+                  className={`p-2 rounded-xl transition-all border ${showPostEmoji ? 'bg-[#ff2a5f]/10 border-[#ff2a5f]/30 text-[#ff2a5f]' : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'}`}
+                  title="Выбрать эмодзи"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
+
+                <button onClick={handlePublish} className="bg-white text-black px-6 py-2.5 rounded-xl font-black text-[11px] uppercase hover:bg-gray-200 active:scale-95 transition-all">Опубликовать</button>
               </div>
             </div>
           )}
 
-          {/* Лента Постов / Заглушки для пустых табов */}
+          {/* Лента Постов */}
           {view !== 'messages' && view !== 'notifications' && (
             <div className="flex flex-col gap-4 mb-16">
               {posts.length > 0 ? (
@@ -764,23 +895,49 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                             </div>
                           ))}
                         </div>
-                        <div className="flex gap-2">
+
+                        {/* ПАНЕЛЬ ЭМОДЗИ ДЛЯ КОММЕНТАРИЕВ */}
+                        {showCommentEmoji[post.id] && (
+                          <div className="emoji-bar p-2 rounded-xl flex flex-wrap gap-1.5 max-h-20 overflow-y-auto chat-scroll animate-fadeIn">
+                            {EMOJI_LIST.map((emoji, i) => (
+                              <button 
+                                key={i} 
+                                onClick={() => addEmojiToComment(post.id, emoji)}
+                                className="emoji-item text-base p-0.5 outline-none select-none"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex gap-2 items-center">
+                          {/* Переключатель эмодзи коммента */}
+                          <button 
+                            onClick={() => setShowCommentEmoji(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
+                            className={`p-2.5 h-10 rounded-xl transition-all border ${showCommentEmoji[post.id] ? 'bg-[#ff2a5f]/10 border-[#ff2a5f]/30 text-[#ff2a5f]' : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'}`}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </button>
+
                           <input
+                            ref={el => commentInputRefs.current[post.id] = el}
                             type="text"
                             placeholder="Написать... "
-                            className="comment-input"
+                            className="comment-input h-10"
                             value={commentInputs[post.id] || ''}
                             onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
                             onKeyDown={(e) => e.key === 'Enter' && handleSendComment(post.id)}
                           />
-                          <button onClick={() => handleSendComment(post.id)} className="bg-white text-black px-4 rounded-xl font-black text-[10px] uppercase hover:bg-gray-200">OK</button>
+                          <button onClick={() => handleSendComment(post.id)} className="bg-white text-black h-10 px-4 rounded-xl font-black text-[10px] uppercase hover:bg-gray-200 flex items-center justify-center">OK</button>
                         </div>
                       </div>
                     )}
                   </div>
                 ))
               ) : (
-                /* КИБЕРПАНК ТЕКСТЫ-ЗАГЛУШКИ ДЛЯ ПУСТЫХ ТАБОВ */
                 view === 'profile' && (
                   <div className="glass-card rounded-2xl md:rounded-[28px] p-8 text-center border-dashed border-white/5 select-none">
                     <p className="text-gray-600 font-black uppercase text-[11px] tracking-[0.2em]">

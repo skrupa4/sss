@@ -435,8 +435,9 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         .animated-content { opacity: 0; transform: translateY(10px); transition: opacity 0.4s cubic-bezier(0.215, 0.610, 0.355, 1), transform 0.4s cubic-bezier(0.215, 0.610, 0.355, 1); }
         .animated-content.visible { opacity: 1; transform: translateY(0); }
          
-        .neon-spinner { width: 40px; height: 40px; border: 3px solid rgba(255, 255, 255, 0.03); border-top-color: #ff2a5f; border-radius: 50%; animation: spin 0.8s linear infinite; filter: drop-shadow(0 0 6px #ff2a5f); }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        /* Киберпанковый неоновый ромб вместо круга */
+        .neon-rhombus { width: 32px; height: 32px; background: #ff2a5f; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); animation: rhomb-spin 1.2s cubic-bezier(0.77, 0, 0.175, 1) infinite; filter: drop-shadow(0 0 12px #ff2a5f); box-shadow: 0 0 20px #ff2a5f, 0 0 40px #7e22ce; }
+        @keyframes rhomb-spin { 0% { transform: rotate(0deg) scale(1); opacity: 1; } 50% { transform: rotate(180deg) scale(0.75); opacity: 0.6; background: #7e22ce; } 100% { transform: rotate(360deg) scale(1); opacity: 1; } }
 
         /* Кастомный скроллбар для зоны сообщений */
         .chat-scroll::-webkit-scrollbar { width: 4px; }
@@ -445,11 +446,11 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         .chat-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 42, 95, 0.3); }
       `}</style>
 
-      {/* ЭКРАН ЗАГРУЗКИ */}
+      {/* ЭКРАН ЗАГРУЗКИ С КРАСИВЫМ РОМБИКОМ */}
       {shouldRenderLoader && (
-        <div className={`fixed inset-0 bg-[#080808] z-[9999] flex flex-col gap-4 items-center justify-center fade-loader ${!isLoading ? 'hidden' : ''}`}>
-          <div className="neon-spinner"></div>
-          <div className="text-gray-500 font-black uppercase text-[10px] tracking-[0.25em] sss-logo">Загрузка данных...</div>
+        <div className={`fixed inset-0 bg-[#080808] z-[9999] flex flex-col gap-5 items-center justify-center fade-loader ${!isLoading ? 'hidden' : ''}`}>
+          <div className="neon-rhombus"></div>
+          <div className="text-gray-500 font-black uppercase text-[9px] tracking-[0.3em] sss-logo mt-1">Загрузка протокола...</div>
         </div>
       )}
 
@@ -462,7 +463,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
           </div>
           <nav className="flex flex-row lg:flex-col gap-1 w-full lg:w-auto justify-around lg:justify-start">
             <div onClick={() => handleViewChange('feed')} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'feed' ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
-              <svg className={`w-5 h-5 ${view === 'feed' ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2.5 2.5 0 00-2.5-2.5H14" /></svg>
+              <svg className={`w-5 h-5 ${view === 'feed' ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012-2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2.5 2.5 0 00-2.5-2.5H14" /></svg>
               <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Лента</span>
             </div>
 
@@ -499,7 +500,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
               {/* Левая колонка: Список Чатов */}
               <div className={`w-full md:w-2/5 border-r border-white/5 flex flex-col ${activeChat ? 'hidden md:flex' : 'flex'}`}>
                 <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                  <h1 className="text-lg md:text-xl font-black uppercase italic sss-logo tracking-tight">Директ</h1>
+                  <h1 className="text-lg md:text-xl font-black uppercase italic sss-logo tracking-tight">Чаты</h1>
                 </div>
                 <div className="flex-1 overflow-y-auto p-2 space-y-1 chat-scroll">
                   {chats.length === 0 ? (
@@ -685,74 +686,88 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
             </div>
           )}
 
-          {/* Лента Постов (Скрыта в режиме сообщений) */}
+          {/* Лента Постов / Заглушки для пустых табов */}
           {view !== 'messages' && (
             <div className="flex flex-col gap-4 mb-16">
-              {posts.length > 0 && posts.map((post) => (
-                <div key={post.id} className="glass-card rounded-2xl md:rounded-[28px] p-4 md:p-6 transition-all group hover:border-white/10">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-3">
-                      <div onClick={() => handleViewChange('profile', post.username)} className={`w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br ${getAvatarGradient(post.username)} flex items-center justify-center text-white font-black text-md uppercase select-none cursor-pointer hover:scale-105 transition-transform flex-shrink-0`}>
-                        {post.username ? post.username.charAt(0) : '?'}
+              {posts.length > 0 ? (
+                posts.map((post) => (
+                  <div key={post.id} className="glass-card rounded-2xl md:rounded-[28px] p-4 md:p-6 transition-all group hover:border-white/10">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center gap-3">
+                        <div onClick={() => handleViewChange('profile', post.username)} className={`w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br ${getAvatarGradient(post.username)} flex items-center justify-center text-white font-black text-md uppercase select-none cursor-pointer hover:scale-105 transition-transform flex-shrink-0`}>
+                          {post.username ? post.username.charAt(0) : '?'}
+                        </div>
+                        <div>
+                          <p onClick={() => handleViewChange('profile', post.username)} className="font-black text-xs md:text-[13px] uppercase tracking-tight text-white/90 cursor-pointer hover:text-[#ff2a5f] transition-colors">{post.username}</p>
+                          <p className="text-[9px] text-gray-600 font-black uppercase mt-0.5">{post.created_at ? new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p onClick={() => handleViewChange('profile', post.username)} className="font-black text-xs md:text-[13px] uppercase tracking-tight text-white/90 cursor-pointer hover:text-[#ff2a5f] transition-colors">{post.username}</p>
-                        <p className="text-[9px] text-gray-600 font-black uppercase mt-0.5">{post.created_at ? new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}</p>
-                      </div>
+                      {(post.username === user.username || (isOwnProfile && activeTab === 'reposts')) && (
+                        <button onClick={() => handleDelete(post.id)} className="lg:opacity-0 lg:group-hover:opacity-100 p-2 text-gray-700 hover:text-red-500 transition-all cursor-pointer">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      )}
                     </div>
-                    {(post.username === user.username || (isOwnProfile && activeTab === 'reposts')) && (
-                      <button onClick={() => handleDelete(post.id)} className="lg:opacity-0 lg:group-hover:opacity-100 p-2 text-gray-700 hover:text-red-500 transition-all cursor-pointer">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                    <p className="pl-1 text-sm md:text-[15px] text-gray-300 leading-normal mb-5">{post.content}</p>
+                    
+                    {/* Кнопки взаимодействий */}
+                    <div className="flex items-center justify-between sm:justify-start gap-4 sm:gap-8 pt-3 border-t border-white/5">
+                      <button className={`interact-btn ${post.likes > 0 ? 'active' : ''}`} onClick={() => handleLike(post.id)}>
+                        <svg fill={post.likes > 0 ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+                        <span>{post.likes || 0}</span>
                       </button>
+                      <button className={`interact-btn ${activePostComments[post.id] ? 'active text-white' : ''}`} onClick={() => toggleComments(post.id)}>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25-9 3.694-9 8.25c0 2.14.882 4.08 2.312 5.58.125.13.187.31.156.48l-.48 2.22c-.06.273.2.49.444.37l2.25-1.125c.15-.075.33-.075.48 0 1.05.525 2.22.825 3.45.825z" /></svg>
+                        <span>{post.comments_count || 0}</span>
+                      </button>
+                      <button onClick={() => handleRepost(post.id)} className={`interact-btn ${post.reposts > 0 ? 'text-blue-400' : ''}`}>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" /></svg>
+                        <span>{post.reposts || 0}</span>
+                      </button>
+                    </div>
+
+                    {/* Блок комментариев */}
+                    {activePostComments[post.id] && (
+                      <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
+                        <div className="flex flex-col gap-3 max-h-60 overflow-y-auto pr-2">
+                          {activePostComments[post.id].map(comment => (
+                            <div key={comment.id} className="bg-white/5 p-3 rounded-2xl border border-white/5">
+                              <div className="flex justify-between mb-1">
+                                <span className="text-[11px] font-black text-[#ff2a5f] uppercase">{comment.username}</span>
+                                <span className="text-[9px] text-gray-600 uppercase font-bold">{new Date(comment.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                              </div>
+                              <p className="text-[13px] text-gray-300">{comment.content}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Написать... "
+                            className="comment-input"
+                            value={commentInputs[post.id] || ''}
+                            onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSendComment(post.id)}
+                          />
+                          <button onClick={() => handleSendComment(post.id)} className="bg-white text-black px-4 rounded-xl font-black text-[10px] uppercase hover:bg-gray-200">OK</button>
+                        </div>
+                      </div>
                     )}
                   </div>
-                  <p className="pl-1 text-sm md:text-[15px] text-gray-300 leading-normal mb-5">{post.content}</p>
-                  
-                  {/* Кнопки взаимодействий */}
-                  <div className="flex items-center justify-between sm:justify-start gap-4 sm:gap-8 pt-3 border-t border-white/5">
-                    <button className={`interact-btn ${post.likes > 0 ? 'active' : ''}`} onClick={() => handleLike(post.id)}>
-                      <svg fill={post.likes > 0 ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
-                      <span>{post.likes || 0}</span>
-                    </button>
-                    <button className={`interact-btn ${activePostComments[post.id] ? 'active text-white' : ''}`} onClick={() => toggleComments(post.id)}>
-                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25-9 3.694-9 8.25c0 2.14.882 4.08 2.312 5.58.125.13.187.31.156.48l-.48 2.22c-.06.273.2.49.444.37l2.25-1.125c.15-.075.33-.075.48 0 1.05.525 2.22.825 3.45.825z" /></svg>
-                      <span>{post.comments_count || 0}</span>
-                    </button>
-                    <button onClick={() => handleRepost(post.id)} className={`interact-btn ${post.reposts > 0 ? 'text-blue-400' : ''}`}>
-                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" /></svg>
-                      <span>{post.reposts || 0}</span>
-                    </button>
+                ))
+              ) : (
+                /* КИБЕРПАНК ТЕКСТЫ-ЗАГЛУШКИ ДЛЯ ПУСТЫХ ТАБОВ */
+                view === 'profile' && (
+                  <div className="glass-card rounded-2xl md:rounded-[28px] p-8 text-center border-dashed border-white/5 select-none">
+                    <p className="text-gray-600 font-black uppercase text-[11px] tracking-[0.2em]">
+                      {activeTab === 'posts' 
+                        ? (isOwnProfile ? 'Вы еще не опубликовали ни одной записи' : 'Пользователь еще не опубликовал записи')
+                        : (isOwnProfile ? 'Вы еще не сделали ни одного репоста' : 'Пользователь еще не сделал ни одного репоста')
+                      }
+                    </p>
                   </div>
-
-                  {/* Блок комментариев */}
-                  {activePostComments[post.id] && (
-                    <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
-                      <div className="flex flex-col gap-3 max-h-60 overflow-y-auto pr-2">
-                        {activePostComments[post.id].map(comment => (
-                          <div key={comment.id} className="bg-white/5 p-3 rounded-2xl border border-white/5">
-                            <div className="flex justify-between mb-1">
-                              <span className="text-[11px] font-black text-[#ff2a5f] uppercase">{comment.username}</span>
-                              <span className="text-[9px] text-gray-600 uppercase font-bold">{new Date(comment.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                            </div>
-                            <p className="text-[13px] text-gray-300">{comment.content}</p>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="Написать... "
-                          className="comment-input"
-                          value={commentInputs[post.id] || ''}
-                          onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
-                          onKeyDown={(e) => e.key === 'Enter' && handleSendComment(post.id)}
-                        />
-                        <button onClick={() => handleSendComment(post.id)} className="bg-white text-black px-4 rounded-xl font-black text-[10px] uppercase hover:bg-gray-200">OK</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                )
+              )}
             </div>
           )}
         </main>

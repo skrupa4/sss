@@ -3,9 +3,25 @@ import React, { useState, useEffect, useCallback } from 'react';
 // Твой рабочий бэкенд на Render
 const API_BASE_URL = 'https://sss-backend-haev.onrender.com';
 
+// Вспомогательная функция для генерации градиента на основе имени (чтобы аватарки были уникальными)
+const getAvatarGradient = (username) => {
+  if (!username) return 'from-gray-700 to-gray-900';
+  const charCodeSum = username.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const gradients = [
+    'from-[#ff2a5f] to-[#7e22ce]', // Фирменный SSS
+    'from-[#00f2fe] to-[#4facfe]', // Кибер-синий
+    'from-[#f9d423] to-[#ff4e50]', // Огненный закат
+    'from-[#b1f4cf] to-[#9890e3]', // Неоновая пастель
+    'from-[#f11712] to-[#190e17]', // Дарк-хоррор
+    'from-[#00c6ff] to-[#0072ff]', // Королевский синий
+    'from-[#f857a6] to-[#ff5858]', // Розовый неон
+    'from-[#11998e] to-[#38ef7d]', // Изумруд
+  ];
+  return gradients[charCodeSum % gradients.length];
+};
+
 const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   const hasPremium = true;
-  const EMOJI_LIST = ['🤩', '😎', '🐱‍💻', '🔥', '💎', '👻', '👾', '👑', '🌌', '⚡'];
 
   const [view, setView] = useState('profile'); 
   const [postText, setPostText] = useState('');
@@ -14,17 +30,12 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [activePostComments, setActivePostComments] = useState({}); 
   const [commentInputs, setCommentInputs] = useState({});
-  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
 
   const [currentProfile, setCurrentProfile] = useState(user.username);
   const isOwnProfile = currentProfile === user.username;
 
-  // Добавляем флаг загрузки, чтобы управлять экраном ожидания
   const [isLoading, setIsLoading] = useState(true);
-  // Локальный стейт для плавного исчезновения лоадера из DOM после анимации
   const [shouldRenderLoader, setShouldRenderLoader] = useState(true);
-
-  // Стейт для триггера анимации появления контента
   const [animateContent, setAnimateContent] = useState(false);
 
   const [profileData, setProfileData] = useState({
@@ -34,15 +45,14 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     following: 0,
     memberSince: 'Май 2026',
     clan: 'SSS OWNER',
-    isSubscribed: false,
-    avatar_emoji: '🤩'
+    isSubscribed: false
   });
 
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       setShouldRenderLoader(true);
-      setAnimateContent(false); // Сбрасываем видимость контента перед загрузкой
+      setAnimateContent(false);
 
       const userRes = await fetch(`${API_BASE_URL}/api/users/${currentProfile}?viewer=${user.username}`);
       if (userRes.ok) {
@@ -72,10 +82,9 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
       setProfileData(prev => ({ ...prev, username: currentProfile, handle: currentProfile }));
     } finally {
       setIsLoading(false);
-      // Даем CSS-анимации на fade-out лоадера отработать (300ms) перед удалением его из DOM
       setTimeout(() => {
         setShouldRenderLoader(false);
-        setAnimateContent(true); // Плавно включаем основной контент
+        setAnimateContent(true);
       }, 300);
     }
   }, [currentProfile, view, activeTab, user.username]);
@@ -84,7 +93,6 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     loadData();
   }, [loadData]);
 
-  // Быстрый переключатель вкладок/видов с мгновенным перезапуском анимации появления
   const handleViewChange = (newView, targetProfile = null) => {
     setAnimateContent(false);
     if (targetProfile) setCurrentProfile(targetProfile);
@@ -127,8 +135,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             username: profileData.username, 
-            handle: profileData.handle,
-            avatar_emoji: profileData.avatar_emoji
+            handle: profileData.handle
           }),
         });
         
@@ -145,25 +152,6 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
       }
     }
     setIsEditing(!isEditing);
-  };
-
-  const handleEmojiSelect = async (emoji) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/users/${user.username}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ avatar_emoji: emoji }),
-      });
-      
-      if (res.ok) {
-        const updated = await res.json();
-        setProfileData(prev => ({ ...prev, avatar_emoji: updated.avatar_emoji }));
-        setIsEmojiPickerOpen(false);
-        if (onUpdateUser) onUpdateUser(updated);
-      }
-    } catch (err) {
-      console.error("Ошибка смены эмодзи:", err);
-    }
   };
 
   const handlePublish = async () => {
@@ -330,19 +318,17 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         .comment-input { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 8px 12px; width: 100%; outline: none; color: white; font-size: 13px; }
         .btn-fixed { flex-shrink: 0 !important; white-space: nowrap !important; }
 
-        /* ПЛАВНЫЕ КЛАССЫ ДЛЯ АНИМАЦИИ */
         .fade-loader { transition: opacity 0.30s ease-in-out, visibility 0.30s; opacity: 1; visibility: visible; }
         .fade-loader.hidden { opacity: 0; visibility: hidden; }
         
         .animated-content { opacity: 0; transform: translateY(10px); transition: opacity 0.4s cubic-bezier(0.215, 0.610, 0.355, 1), transform 0.4s cubic-bezier(0.215, 0.610, 0.355, 1); }
         .animated-content.visible { opacity: 1; transform: translateY(0); }
         
-        /* Кастомный неоновый спиннер */
-        .neon-spinner { width: 40px; height: 40px; border: 3px border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.03); border-top-color: #ff2a5f; animation: spin 0.8s linear infinite; filter: drop-shadow(0 0 6px #ff2a5f); }
+        .neon-spinner { width: 40px; height: 40px; border: 3px solid rgba(255, 255, 255, 0.03); border-top-color: #ff2a5f; border-radius: 50%; animation: spin 0.8s linear infinite; filter: drop-shadow(0 0 6px #ff2a5f); }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
-      {/* КРАСИВЫЙ ПЛАВНЫЙ ЭКРАН ЗАГРУЗКИ */}
+      {/* ЭКРАН ЗАГРУЗКИ */}
       {shouldRenderLoader && (
         <div className={`fixed inset-0 bg-[#080808] z-[9999] flex flex-col gap-4 items-center justify-center fade-loader ${!isLoading ? 'hidden' : ''}`}>
           <div className="neon-spinner"></div>
@@ -352,7 +338,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
 
       <div className="w-full max-w-[1100px] flex flex-col lg:flex-row gap-6 justify-center">
         
-        {/* Адаптивный Сайдбар */}
+        {/* Сайдбар */}
         <aside className="fixed bottom-0 left-0 w-full lg:w-[240px] lg:static flex flex-row lg:flex-col justify-between lg:justify-start gap-5 glass-card p-3 sm:p-4 lg:p-5 rounded-t-[24px] lg:rounded-[28px] h-fit lg:sticky lg:top-8 shadow-2xl z-[999] border-t border-white/10 lg:border-none">
           <div className="hidden lg:flex justify-center py-4 cursor-pointer" onClick={() => handleViewChange('feed')}>
             <span className="sss-logo text-4xl font-black italic tracking-tighter select-none">SSS</span>
@@ -377,50 +363,19 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
           </div>
         </aside>
 
-        {/* Основной контент с анимацией переключения */}
+        {/* Основной контент */}
         <main className={`flex-1 w-full max-w-[680px] flex flex-col gap-4 md:gap-5 animated-content ${animateContent ? 'visible' : ''}`}>
           {view === 'profile' && (
             <div className="glass-card rounded-2xl md:rounded-[36px] overflow-hidden shadow-2xl border-white/10">
               <div className="h-28 md:h-40 bg-gradient-to-br from-[#111] via-[#1a1a1a] to-[#080808]"></div>
               <div className="px-4 md:px-8 pb-6 md:pb-8 relative">
                 
-                {/* Аватарка и Кнопки управления */}
+                {/* ТЕКСТОВАЯ АВАТАРКА С ГРАДИЕНТОМ ИЗ ИНИЦИАЛОВ */}
                 <div className="flex flex-col md:flex-row justify-between items-center md:items-end -mt-10 md:-mt-12 mb-6 gap-4">
                   <div className="relative group">
-                    <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl md:rounded-[28px] bg-[#111] border-[4px] md:border-[5px] border-[#080808] flex items-center justify-center text-4xl md:text-5xl shadow-2xl">
-                      {profileData.avatar_emoji || '🤩'}
+                    <div className={`w-24 h-24 md:w-28 md:h-28 rounded-2xl md:rounded-[28px] bg-gradient-to-br ${getAvatarGradient(profileData.username)} border-[4px] md:border-[5px] border-[#080808] flex items-center justify-center text-white font-black text-3xl md:text-4xl uppercase select-none shadow-2xl`}>
+                      {profileData.username ? profileData.username.charAt(0) : '?'}
                     </div>
-                    {isOwnProfile && (
-                      <div className="absolute -bottom-1 -right-1 z-50">
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsEmojiPickerOpen(!isEmojiPickerOpen);
-                          }}
-                          className="w-8 h-8 md:w-9 md:h-9 bg-[#ff2a5f] rounded-xl flex items-center justify-center border-[2px] md:border-[3px] border-[#080808] hover:scale-110 transition-transform cursor-pointer shadow-lg active:scale-95"
-                        >
-                          <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
-                            <path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                          </svg>
-                        </button>
-                        {isEmojiPickerOpen && (
-                          <div 
-                            className="absolute top-full left-0 mt-3 p-2 bg-[#121212] border border-white/10 rounded-2xl shadow-2xl grid grid-cols-5 gap-1 w-44 backdrop-blur-xl z-[100]"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {EMOJI_LIST.map((emoji) => (
-                              <button
-                                key={emoji}
-                                onClick={() => handleEmojiSelect(emoji)}
-                                className="text-lg p-2 hover:bg-white/10 rounded-lg transition-all cursor-pointer hover:scale-125 border-none bg-transparent"
-                              >
-                                {emoji}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
 
                   <div className="hidden md:flex gap-2 w-full md:w-auto justify-center items-center">
@@ -428,7 +383,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                   </div>
                 </div>
 
-                {/* Основная Инфо-зона профиля */}
+                {/* Инфо-зона профиля */}
                 <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start text-center sm:text-left gap-4">
                   <div className="space-y-2.5 w-full">
                     {isEditing ? (
@@ -462,7 +417,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                   </div>
                 </div>
 
-                {/* Мобильные кнопки действий */}
+                {/* Мобильные кнопки */}
                 <div className="flex md:hidden gap-2 w-full mt-5 justify-center items-center">
                   <ActionButtons isMobile={true} />
                 </div>
@@ -484,7 +439,10 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
           {(view === 'feed' || (isOwnProfile && activeTab === 'posts')) && (
             <div className="glass-card rounded-2xl md:rounded-[28px] p-4 md:p-6 shadow-xl">
               <div className="flex gap-3 md:gap-4">
-                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-2xl flex-shrink-0">{profileData.avatar_emoji || '🤩'}</div>
+                {/* Аватарка автора при создании поста */}
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getAvatarGradient(user.username)} flex items-center justify-center text-white font-black text-lg uppercase select-none flex-shrink-0`}>
+                  {user.username ? user.username.charAt(0) : '?'}
+                </div>
                 <textarea 
                   placeholder="Что нового?" 
                   value={postText}
@@ -504,8 +462,9 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
               <div key={post.id} className="glass-card rounded-2xl md:rounded-[28px] p-4 md:p-6 transition-all group hover:border-white/10">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3">
-                    <div onClick={() => handleViewChange('profile', post.username)} className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-gray-800 to-[#111] flex items-center justify-center text-lg cursor-pointer hover:scale-105 transition-transform flex-shrink-0">
-                      {post.avatar_emoji || '🤩'}
+                    {/* Аватарка автора в ленте */}
+                    <div onClick={() => handleViewChange('profile', post.username)} className={`w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br ${getAvatarGradient(post.username)} flex items-center justify-center text-white font-black text-md uppercase select-none cursor-pointer hover:scale-105 transition-transform flex-shrink-0`}>
+                      {post.username ? post.username.charAt(0) : '?'}
                     </div>
                     <div>
                       <p onClick={() => handleViewChange('profile', post.username)} className="font-black text-xs md:text-[13px] uppercase tracking-tight text-white/90 cursor-pointer hover:text-[#ff2a5f] transition-colors">{post.username}</p>
@@ -556,25 +515,15 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                         placeholder="Написать... " 
                         className="comment-input"
                         value={commentInputs[post.id] || ''}
-                        onChange={(e) => setCommentInputs({ ...commentInputs, [post.id]: e.target.value })}
-                        onKeyPress={(e) => e.key === 'Enter' && handleSendComment(post.id)}
+                        onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSendComment(post.id)}
                       />
-                      <button onClick={() => handleSendComment(post.id)} className="p-2 bg-[#ff2a5f] rounded-xl flex items-center justify-center flex-shrink-0">
-                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                      </button>
+                      <button onClick={() => handleSendComment(post.id)} className="bg-white text-black px-4 rounded-xl font-black text-[10px] uppercase hover:bg-gray-200">OK</button>
                     </div>
                   </div>
                 )}
               </div>
             ))}
-
-            {posts.length === 0 && (
-              <div className="text-center py-20 text-gray-700 font-black uppercase text-[10px] tracking-[0.3em] opacity-40">
-                {activeTab === 'reposts' 
-                  ? (isOwnProfile ? 'У вас еще нет репостов' : 'У пользователя нет репостов')
-                  : (isOwnProfile ? 'Вы еще ничего не опубликовали' : 'Здесь пока пусто')}
-              </div>
-            )}
           </div>
         </main>
       </div>

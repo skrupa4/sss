@@ -24,7 +24,7 @@ const getAvatarGradient = (username) => {
 const EMOJI_LIST = ['😀', '😂', '🤣', '😊', '😍', '😘', '😜', '😎', '🔥', '👑', '💎', '✨', '💀', '🤡', '💩', '👻', '👾', '👿', '❤️', '💔', '💯', '👍', '👎', '✊', '✌️', '🚀', '💵', '🪐'];
 
 const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
-  const hasPremium = false;
+  const hasPremium = true;
 
   const [view, setView] = useState('profile'); // 'profile' | 'feed' | 'messages' | 'notifications'
   const [postText, setPostText] = useState('');
@@ -56,7 +56,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     following: 0,
     memberSince: 'Май 2026',
     clan: 'SSS OWNER',
-    isSubscribed: false
+    isSubscribed: true
   });
 
   // СОСТОЯНИЯ ДЛЯ ЛИЧНЫХ СООБЩЕНИЙ

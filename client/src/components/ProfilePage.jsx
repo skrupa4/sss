@@ -17,7 +17,7 @@ const decryptClient = (cipherText) => {
 // Твой рабочий бэкенд на Render
 const API_BASE_URL = 'https://sss-backend-haev.onrender.com';
 
-const [totalUnread, setTotalUnread] = useState(0);
+
 
 // Вспомогательная функция для генерации градиента на основе имени
 const getAvatarGradient = (username) => {
@@ -75,6 +75,8 @@ const [profileData, setProfileData] = useState({
     isSubscribed: false,
     is_verified: false
   });
+
+  const [totalUnread, setTotalUnread] = useState(0);
 
   // СОСТОЯНИЯ ДЛЯ ЛИЧНЫХ СООБЩЕНИЙ
   const [chats, setChats] = useState([]);

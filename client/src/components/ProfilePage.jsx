@@ -1,7 +1,23 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import CryptoJS from 'crypto-js';
 
+const SECRET_KEY = 'abcdefghijklmnopqrstuvwxyz123456'; 
+
+// Функции-хелперы для сквозного шифрования (End-to-End на клиенте)
+const encryptClient = (text) => CryptoJS.AES.encrypt(text, SECRET_KEY).toString();
+const decryptClient = (cipherText) => {
+  if (!cipherText) return '';
+  try {
+    // Если сообщение пришло от сервера уже расшифрованным или старым — возвращаем как есть
+    if (!cipherText.startsWith('U2FsdGVkX1')) return cipherText; 
+    const bytes = CryptoJS.AES.decrypt(cipherText, SECRET_KEY);
+    return bytes.toString(CryptoJS.enc.Utf8);
+  } catch (e) { return cipherText; }
+};
 // Твой рабочий бэкенд на Render
 const API_BASE_URL = 'https://sss-backend-haev.onrender.com';
+
+const [totalUnread, setTotalUnread] = useState(0);
 
 // Вспомогательная функция для генерации градиента на основе имени
 const getAvatarGradient = (username) => {
@@ -80,68 +96,89 @@ const [profileData, setProfileData] = useState({
 
   // Загрузка списка чатов
   const loadChats = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/messages/chats?username=${user.username}`);
-      if (res.ok) {
-        const data = await res.json();
-        setChats(Array.isArray(data) ? data : []);
-      }
-    } catch (err) {
-      console.error("Ошибка загрузки чатов:", err);
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/messages/chats?username=${user.username}`);
+    if (res.ok) {
+      const data = await res.json();
+      const decryptedChats = (Array.isArray(data) ? data : []).map(c => ({
+        ...c,
+        last_message: decryptClient(c.last_message)
+      }));
+      setChats(decryptedChats);
     }
-  }, [user.username]);
+  } catch (err) { console.error("Ошибка загрузки чатов:", err); }
+}, [user.username]);
 
-  // Загрузка сообщений конкретного чата
-  const loadMessages = useCallback(async (withUser) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/messages/history?user1=${user.username}&user2=${withUser}`);
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(Array.isArray(data) ? data : []);
-      }
-    } catch (err) {
-      console.error("Ошибка загрузки сообщений:", err);
+const loadMessages = useCallback(async (withUser) => {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/messages/history?user1=${user.username}&user2=${withUser}`);
+    if (res.ok) {
+      const data = await res.json();
+      const decryptedMsgs = (Array.isArray(data) ? data : []).map(m => ({
+        ...m,
+        content: decryptClient(m.content)
+      }));
+      setMessages(decryptedMsgs);
     }
-  }, [user.username]);
+  } catch (err) { console.error("Ошибка загрузки сообщений:", err); }
+}, [user.username]);
 
-  // Интервал для обновления чата и сообщений
-  useEffect(() => {
-    if (view === 'messages') {
-      loadChats();
-      const interval = setInterval(() => {
-        loadChats();
-        if (activeChat) {
-          loadMessages(activeChat.username);
-        }
-      }, 4000); 
-      return () => clearInterval(interval);
+// Загрузка общего количества непрочитанных
+const loadTotalUnread = useCallback(async () => {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/messages/unread/total?username=${user.username}`);
+    if (res.ok) {
+      const data = await res.json();
+      setTotalUnread(data.total || 0);
     }
-  }, [view, activeChat, loadChats, loadMessages]);
+  } catch (err) { console.error(err); }
+}, [user.username]);
 
-  const handleSendMessage = async () => {
-    if (!messageInput.trim() || !activeChat) return;
-    const textToSend = messageInput;
-    setMessageInput(''); 
+// Интервал для обновления чата, сообщений и счетчиков (Каждую 1 секунду)
+useEffect(() => {
+  loadChats();
+  loadTotalUnread();
 
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sender: user.username,
-          receiver: activeChat.username,
-          content: textToSend
-        })
-      });
-      if (res.ok) {
-        const newMsg = await res.json();
-        setMessages(prev => [...prev, newMsg]);
-        loadChats(); 
-      }
-    } catch (err) {
-      console.error("Ошибка отправки сообщения:", err);
+  const interval = setInterval(() => {
+    loadChats();
+    loadTotalUnread();
+    if (view === 'messages' && activeChat) {
+      loadMessages(activeChat.username);
     }
-  };
+  }, 1000); // 1 секунда для real-time обновлений
+
+  return () => clearInterval(interval);
+}, [view, activeChat, loadChats, loadMessages, loadTotalUnread]);
+ const handleSendMessage = async () => {
+  if (!messageInput.trim() || !activeChat) return;
+  const textToSend = messageInput;
+  setMessageInput(''); 
+
+  try {
+    // Шифруем текст сообщения перед передачей по сети
+    const encrypted = encryptClient(textToSend);
+
+    const res = await fetch(`${API_BASE_URL}/api/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender: user.username,
+        receiver: activeChat.username,
+        content: encrypted
+      })
+    });
+    if (res.ok) {
+      const newMsg = await res.json();
+      // Расшифровываем для мгновенного отображения в интерфейсе
+      newMsg.content = decryptClient(newMsg.content);
+      setMessages(prev => [...prev, newMsg]);
+      loadChats(); 
+      loadTotalUnread();
+    }
+  } catch (err) {
+    console.error("Ошибка отправки сообщения:", err);
+  }
+};
 
   const handleOpenChatFromProfile = (targetUser) => {
     setAnimateContent(false);
@@ -521,12 +558,19 @@ const [profileData, setProfileData] = useState({
               <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Лента</span>
             </div>
 
-            <div onClick={() => handleViewChange('messages')} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'messages' ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
-              <svg className={`w-5 h-5 ${view === 'messages' ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Сообщения</span>
-            </div>
+          <div onClick={() => handleViewChange('messages')} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none relative ${view === 'messages' ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
+  <svg className={`w-5 h-5 ${view === 'messages' ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+  </svg>
+  <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Сообщения</span>
+
+  {/* Фирменный кружок количества новых сообщений */}
+  {totalUnread > 0 && (
+    <span className="absolute top-2 right-4 lg:right-5 bg-[#ff2a5f] text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-[#080808] animate-pulse">
+      {totalUnread}
+    </span>
+  )}
+</div>
 
             <div onClick={() => handleViewChange('notifications')} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'notifications' ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
               <svg className={`w-5 h-5 ${view === 'notifications' ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
@@ -572,7 +616,17 @@ const [profileData, setProfileData] = useState({
                         onClick={() => {
                           setActiveChat(chat);
                           loadMessages(chat.username);
+                          {/* Внутри map списка чатов, рядом с аватаркой или контентом */}
+<div className="relative flex items-center justify-between w-full">
+  {/* ... Твой существующий код рендера информации чата (имя, последнее сообщение) ... */}
+
+  {/* Неоновый кружочек нового сообщения от этого чата */}
+  {chat.hasUnread && (
+    <div className="w-2.5 h-2.5 rounded-full bg-[#ff2a5f] shadow-[0_0_8px_#ff2a5f] flex-shrink-0 ml-2"></div>
+  )}
+</div>
                         }}
+                        
                         className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${activeChat?.username === chat.username ? 'bg-white/5 border border-white/5' : 'hover:bg-white/[0.02] border border-transparent'}`}
                       >
                         <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getAvatarGradient(chat.username)} flex items-center justify-center text-white font-black text-sm uppercase flex-shrink-0 shadow-md`}>

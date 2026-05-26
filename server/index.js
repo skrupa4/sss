@@ -9,36 +9,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const crypto = require('crypto');
-// Секретный ключ шифрования (32 символа). Задай его в переменных окружения Render, либо будет дефолтный
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'abcdefghijklmnopqrstuvwxyz123456'; 
-const IV_LENGTH = 16;
-
-// Функции шифрования на сервере
-function encryptText(text) {
-  if (!text) return '';
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
-  let encrypted = cipher.update(text);
-  encrypted = Buffer.concat([encrypted, cipher.final()]);
-  return iv.toString('hex') + ':' + encrypted.toString('hex');
-}
-
-function decryptText(text) {
-  if (!text || !text.includes(':')) return text; // Если сообщение старое нешифрованное
-  try {
-    const textParts = text.split(':');
-    const iv = Buffer.from(textParts.shift(), 'hex');
-    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
-    let decrypted = decipher.update(encryptedText);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    return decrypted.toString();
-  } catch (err) {
-    return '[Ошибка расшифровки]';
-  }
-}
-
 // Настраиваем порт динамически для Render
 const PORT = process.env.PORT || 5000;
 
@@ -75,18 +45,7 @@ const initDB = async () => {
         is_verified BOOLEAN DEFAULT false -- <-- ДОБАВИЛИ ПОЛЕ ДЛЯ ГАЛОЧКИ ТУТ
       );
     `);
-// Таблица личных сообщений
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS messages (
-        id SERIAL PRIMARY KEY,
-        sender TEXT NOT NULL,
-        receiver TEXT NOT NULL,
-        content TEXT NOT NULL,
-        is_read BOOLEAN DEFAULT false,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
+    
     // Таблица постов
     await pool.query(`
       CREATE TABLE IF NOT EXISTS posts (
@@ -442,111 +401,6 @@ app.post('/api/login', async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: "Ошибка сервера" });
-  }
-});
-// --- ЛИЧНЫЕ СООБЩЕНИЯ С ШИФРОВАНИЕМ ---
-
-// 1. Отправка сообщения (Шифрует перед записью в БД)
-app.post('/api/messages', async (req, res) => {
-  const { sender, receiver, content } = req.body;
-  if (!sender || !receiver || !content?.trim()) {
-    return res.status(400).json({ error: "Все поля обязательны" });
-  }
-  try {
-    const encryptedContent = encryptText(content);
-    const result = await pool.query(
-      'INSERT INTO messages (sender, receiver, content) VALUES ($1, $2, $3) RETURNING *',
-      [sender, receiver, encryptedContent]
-    );
-    const savedMsg = result.rows[0];
-    savedMsg.content = content; // Возвращаем фронтенду расшифрованный текст
-    res.json(savedMsg);
-  } catch (err) {
-    res.status(500).json({ error: "Ошибка отправки: " + err.message });
-  }
-});
-
-// 2. История переписки + авто-прочтение при запросе чата
-app.get('/api/messages/history', async (req, res) => {
-  const { user1, user2 } = req.query; // user1 - текущий, user2 - собеседник
-  try {
-    // Помечаем сообщения от собеседника к нам как прочитанные
-    await pool.query(
-      'UPDATE messages SET is_read = true WHERE sender = $1 AND receiver = $2 AND is_read = false',
-      [user2, user1]
-    );
-
-    const result = await pool.query(
-      `SELECT * FROM messages 
-       WHERE (sender = $1 AND receiver = $2) OR (sender = $2 AND receiver = $1)
-       ORDER BY created_at ASC`,
-      [user1, user2]
-    );
-
-    // Расшифровываем перед отправкой на фронт
-    const decryptedRows = result.rows.map(row => ({
-      ...row,
-      content: decryptText(row.content)
-    }));
-
-    res.json(decryptedRows);
-  } catch (err) {
-    res.status(500).json({ error: "Ошибка истории: " + err.message });
-  }
-});
-
-// 3. Список чатов с информацией о непрочитанных
-app.get('/api/messages/chats', async (req, res) => {
-  const { username } = req.query;
-  try {
-    const result = await pool.query(
-      `WITH last_messages AS (
-         SELECT DISTINCT ON (CASE WHEN sender = $1 THEN receiver ELSE sender END)
-                id, sender, receiver, content, is_read, created_at,
-                CASE WHEN sender = $1 THEN receiver ELSE sender END as chat_user
-         FROM messages
-         WHERE sender = $1 OR receiver = $1
-         ORDER BY CASE WHEN sender = $1 THEN receiver ELSE sender END, created_at DESC
-       ),
-       unread_counts AS (
-         SELECT sender, COUNT(*) as unread
-         FROM messages
-         WHERE receiver = $1 AND is_read = false
-         GROUP BY sender
-       )
-       SELECT lm.chat_user as username, lm.content as last_message, lm.created_at, lm.sender, lm.is_read,
-              COALESCE(uc.unread, 0)::int as unread_count, u.handle, u.is_verified
-       FROM last_messages lm
-       LEFT JOIN users u ON u.username = lm.chat_user
-       LEFT JOIN unread_counts uc ON uc.sender = lm.chat_user
-       ORDER BY lm.created_at DESC`,
-      [username]
-    );
-
-    const formattedChats = result.rows.map(chat => ({
-      ...chat,
-      last_message: decryptText(chat.last_message),
-      // Непрочитанным считается, если последнее сообщение отправлено НЕ нами и имеет статус false
-      hasUnread: chat.unread_count > 0
-    }));
-
-    res.json(formattedChats);
-  } catch (err) {
-    res.status(500).json({ error: "Ошибка чатов: " + err.message });
-  }
-});
-
-// 4. Общее количество новых сообщений для глобального счетчика на вкладке
-app.get('/api/messages/unread/total', async (req, res) => {
-  const { username } = req.query;
-  try {
-    const result = await pool.query(
-      'SELECT COUNT(*)::int as total FROM messages WHERE receiver = $1 AND is_read = false',
-      [username]
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ total: 0 });
   }
 });
 

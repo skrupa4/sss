@@ -45,7 +45,17 @@ const initDB = async () => {
         is_verified BOOLEAN DEFAULT false -- <-- ДОБАВИЛИ ПОЛЕ ДЛЯ ГАЛОЧКИ ТУТ
       );
     `);
-    
+    // Таблица личных сообщений
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id SERIAL PRIMARY KEY,
+        sender TEXT NOT NULL,
+        receiver TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     // Таблица постов
     await pool.query(`
       CREATE TABLE IF NOT EXISTS posts (
@@ -401,6 +411,66 @@ app.post('/api/login', async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+// --- ЛИЧНЫЕ СООБЩЕНИЯ (МЕССЕНДЖЕР) ---
+
+// 1. Отправка сообщения
+app.post('/api/messages', async (req, res) => {
+  const { sender, receiver, content } = req.body;
+  if (!sender || !receiver || !content?.trim()) {
+    return res.status(400).json({ error: "Все поля обязательны" });
+  }
+  try {
+    const result = await pool.query(
+      'INSERT INTO messages (sender, receiver, content) VALUES ($1, $2, $3) RETURNING *',
+      [sender, receiver, content]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка отправки сообщения: " + err.message });
+  }
+});
+
+// 2. Получение истории переписки между двумя пользователями
+app.get('/api/messages/history', async (req, res) => {
+  const { user1, user2 } = req.query;
+  try {
+    const result = await pool.query(
+      `SELECT * FROM messages 
+       WHERE (sender = $1 AND receiver = $2) OR (sender = $2 AND receiver = $1)
+       ORDER BY created_at ASC`,
+      [user1, user2]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка получения истории: " + err.message });
+  }
+});
+
+// 3. Получение списка активных чатов пользователя с последними сообщениями
+app.get('/api/messages/chats', async (req, res) => {
+  const { username } = req.query;
+  try {
+    // Этот запрос находит всех уникальных собеседников и вытаскивает последнее сообщение из чата с ними
+    const result = await pool.query(
+      `WITH last_messages AS (
+         SELECT DISTINCT ON (CASE WHEN sender = $1 THEN receiver ELSE sender END)
+                id, sender, receiver, content, created_at,
+                CASE WHEN sender = $1 THEN receiver ELSE sender END as chat_user
+         FROM messages
+         WHERE sender = $1 OR receiver = $1
+         ORDER BY CASE WHEN sender = $1 THEN receiver ELSE sender END, created_at DESC
+       )
+       SELECT lm.chat_user as username, lm.content as last_message, lm.created_at, u.handle, u.is_verified
+       FROM last_messages lm
+       LEFT JOIN users u ON u.username = lm.chat_user
+       ORDER BY lm.created_at DESC`,
+      [username]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка получения списка чатов: " + err.message });
   }
 });
 

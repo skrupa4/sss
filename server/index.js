@@ -40,6 +40,8 @@ const initDB = async () => {
         bio TEXT DEFAULT ''
       );
     `);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT DEFAULT ''`);
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS messages (
         id SERIAL PRIMARY KEY,
@@ -50,6 +52,8 @@ const initDB = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    await pool.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT false`);
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS posts (
         id SERIAL PRIMARY KEY,
@@ -111,7 +115,7 @@ const initDB = async () => {
 };
 initDB();
 
-// ========== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ УВЕДОМЛЕНИЙ ==========
+// ========== УВЕДОМЛЕНИЯ ==========
 async function createNotification(userTo, userFrom, type, postId = null, extraContent = null) {
   if (userTo === userFrom) return;
   try {
@@ -124,7 +128,7 @@ async function createNotification(userTo, userFrom, type, postId = null, extraCo
   }
 }
 
-// ========== ПРОФИЛЬ И ЮЗЕРЫ ==========
+// ========== ПРОФИЛЬ ==========
 app.get('/api/users/:username', async (req, res) => {
   const { username } = req.params;
   const viewer = req.query.viewer;
@@ -149,7 +153,6 @@ app.put('/api/users/:oldUsername', async (req, res) => {
   const { oldUsername } = req.params;
   const { username, handle, bio } = req.body;
   try {
-    // Проверка уникальности нового username
     if (username !== oldUsername) {
       const check = await pool.query('SELECT 1 FROM users WHERE username = $1', [username]);
       if (check.rows.length > 0) {
@@ -166,11 +169,10 @@ app.put('/api/users/:oldUsername', async (req, res) => {
     await pool.query('BEGIN');
     const result = await pool.query(
       'UPDATE users SET username = $1, handle = $2, bio = $3 WHERE username = $4 RETURNING *',
-      [username, handle, bio, oldUsername]
+      [username, handle, bio || '', oldUsername]
     );
     if (result.rows.length === 0) throw new Error('Пользователь не найден');
 
-    // Обновляем все связанные таблицы
     await pool.query('UPDATE posts SET username = $1 WHERE username = $2', [username, oldUsername]);
     await pool.query('UPDATE comments SET username = $1 WHERE username = $2', [username, oldUsername]);
     await pool.query('UPDATE post_likes SET username = $1 WHERE username = $2', [username, oldUsername]);
@@ -250,25 +252,24 @@ app.delete('/api/users/:username/follow', async (req, res) => {
 app.get('/api/posts', async (req, res) => {
   const afterId = req.query.after_id ? parseInt(req.query.after_id) : 0;
   try {
-    let query = `
-      SELECT p.*, u.is_verified 
-      FROM posts p 
-      LEFT JOIN users u ON p.username = u.username 
-      ORDER BY p.created_at DESC
-    `;
     if (afterId > 0) {
-      query = `
+      const result = await pool.query(`
         SELECT p.*, u.is_verified 
         FROM posts p 
         LEFT JOIN users u ON p.username = u.username 
         WHERE p.id > $1
         ORDER BY p.created_at DESC
-      `;
-      const result = await pool.query(query, [afterId]);
+      `, [afterId]);
       return res.json(result.rows);
+    } else {
+      const result = await pool.query(`
+        SELECT p.*, u.is_verified 
+        FROM posts p 
+        LEFT JOIN users u ON p.username = u.username 
+        ORDER BY p.created_at DESC
+      `);
+      res.json(result.rows);
     }
-    const result = await pool.query(query);
-    res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -324,7 +325,7 @@ app.delete('/api/posts/:id', async (req, res) => {
   }
 });
 
-// ========== ЛАЙКИ (с уведомлением) ==========
+// ========== ЛАЙКИ ==========
 app.post('/api/posts/:id/like', async (req, res) => {
   const { id } = req.params;
   const { username } = req.body;
@@ -349,7 +350,7 @@ app.post('/api/posts/:id/like', async (req, res) => {
   }
 });
 
-// ========== КОММЕНТАРИИ (с уведомлением) ==========
+// ========== КОММЕНТАРИИ ==========
 app.get('/api/posts/:id/comments', async (req, res) => {
   const { id } = req.params;
   try {
@@ -380,7 +381,7 @@ app.post('/api/posts/:id/comments', async (req, res) => {
   }
 });
 
-// ========== РЕПОСТЫ (с уведомлением) ==========
+// ========== РЕПОСТЫ ==========
 app.post('/api/posts/:id/repost', async (req, res) => {
   const { id } = req.params;
   const { username } = req.body;
@@ -531,7 +532,6 @@ app.get('/api/messages/chats', async (req, res) => {
   }
 });
 
-// Непрочитанные сообщения
 app.get('/api/messages/unread-count', async (req, res) => {
   const { username } = req.query;
   try {

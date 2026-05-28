@@ -61,15 +61,12 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   const [messageInput, setMessageInput] = useState('');
   const messagesEndRef = useRef(null);
 
-  // Непрочитанные сообщения
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [unreadChats, setUnreadChats] = useState({});
 
-  // Уведомления
   const [notificationsList, setNotificationsList] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Для live-обновления ленты
   const [lastPostId, setLastPostId] = useState(0);
 
   const scrollToBottom = () => {
@@ -93,6 +90,18 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     }
   }, [user.username]);
 
+  const markChatAsRead = useCallback(async (chatUser) => {
+    try {
+      await fetch(`${API_BASE_URL}/api/messages/read`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user.username, chatUser })
+      });
+      setUnreadChats(prev => ({ ...prev, [chatUser]: 0 }));
+      loadUnreadCounts();
+    } catch (err) { console.error(err); }
+  }, [user.username]);
+
   const loadMessages = useCallback(async (withUser) => {
     if (!withUser) return;
     try {
@@ -100,13 +109,13 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
       if (res.ok) {
         const data = await res.json();
         setMessages(Array.isArray(data) ? data : []);
-        // Отметить как прочитанные, если чат открыт
-        await markChatAsRead(withUser);
+        // Отмечаем прочитанные, но не ждём результата
+        markChatAsRead(withUser);
       }
     } catch (err) {
       console.error("Ошибка загрузки сообщений:", err);
     }
-  }, [user.username]);
+  }, [user.username, markChatAsRead]);
 
   const loadUnreadCounts = useCallback(async () => {
     try {
@@ -122,22 +131,8 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         chatsData.forEach(chat => { unreadMap[chat.chat_user] = chat.unread_count; });
         setUnreadChats(unreadMap);
       }
-    } catch (err) {
-      console.error(err);
-    }
-  }, [user.username]);
-
-  const markChatAsRead = async (chatUser) => {
-    try {
-      await fetch(`${API_BASE_URL}/api/messages/read`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: user.username, chatUser })
-      });
-      setUnreadChats(prev => ({ ...prev, [chatUser]: 0 }));
-      loadUnreadCounts();
     } catch (err) { console.error(err); }
-  };
+  }, [user.username]);
 
   useEffect(() => {
     if (view === 'messages') {
@@ -251,6 +246,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
           const postsData = await postsRes.json();
           setPosts(postsData);
           if (postsData.length > 0) setLastPostId(postsData[0].id);
+          else setLastPostId(0);
         }
       }
     } catch (err) {
@@ -266,7 +262,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     }
   }, [currentProfile, view, activeTab, user.username, activeChat, loadChats, loadMessages]);
 
-  // Live-обновление ленты
+  // Live-обновление ленты (без дубликатов)
   useEffect(() => {
     if (view !== 'feed') return;
     const interval = setInterval(async () => {
@@ -274,7 +270,11 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         const res = await fetch(`${API_BASE_URL}/api/posts?after_id=${lastPostId}`);
         const newPosts = await res.json();
         if (newPosts.length > 0) {
-          setPosts(prev => [...newPosts, ...prev]);
+          setPosts(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const uniqueNew = newPosts.filter(p => !existingIds.has(p.id));
+            return [...uniqueNew, ...prev];
+          });
           setLastPostId(newPosts[0].id);
         }
       } catch (err) { console.error(err); }
@@ -329,7 +329,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
           body: JSON.stringify({
             username: profileData.username,
             handle: profileData.handle,
-            bio: profileData.bio
+            bio: profileData.bio || ''
           }),
         });
         if (res.ok) {
@@ -364,7 +364,13 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
       if (response.ok) {
         const savedPost = await response.json();
         if (view === 'feed' || (isOwnProfile && activeTab === 'posts')) {
-          setPosts(prev => [savedPost, ...prev]);
+          setPosts(prev => {
+            // Проверка, нет ли уже такого поста
+            if (prev.some(p => p.id === savedPost.id)) return prev;
+            return [savedPost, ...prev];
+          });
+          // Обновляем lastPostId, чтобы live-обновление не добавило этот же пост повторно
+          if (savedPost.id > lastPostId) setLastPostId(savedPost.id);
         }
         setPostText('');
         setShowPostEmoji(false);

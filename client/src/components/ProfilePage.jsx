@@ -1,46 +1,40 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
-// Твой рабочий бэкенд на Render
 const API_BASE_URL = 'https://sss-backend-haev.onrender.com';
 
-// Вспомогательная функция для генерации градиента на основе имени
 const getAvatarGradient = (username) => {
   if (!username) return 'from-gray-700 to-gray-900';
   const charCodeSum = username.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const gradients = [
-    'from-[#ff2a5f] to-[#7e22ce]', // Фирменный SSS
-    'from-[#00f2fe] to-[#4facfe]', // Кибер-синий
-    'from-[#f9d423] to-[#ff4e50]', // Огненный закат
-    'from-[#b1f4cf] to-[#9890e3]', // Неоновая пастель
-    'from-[#f11712] to-[#190e17]', // Дарк-хоррор
-    'from-[#00c6ff] to-[#0072ff]', // Королевский синий
-    'from-[#f857a6] to-[#ff5858]', // Розовый неон
-    'from-[#11998e] to-[#38ef7d]', // Изумруд
+    'from-[#ff2a5f] to-[#7e22ce]',
+    'from-[#00f2fe] to-[#4facfe]',
+    'from-[#f9d423] to-[#ff4e50]',
+    'from-[#b1f4cf] to-[#9890e3]',
+    'from-[#f11712] to-[#190e17]',
+    'from-[#00c6ff] to-[#0072ff]',
+    'from-[#f857a6] to-[#ff5858]',
+    'from-[#11998e] to-[#38ef7d]',
   ];
   return gradients[charCodeSum % gradients.length];
 };
 
-// Набор популярных эмодзи для быстрой вставки
 const EMOJI_LIST = ['😀', '😂', '🤣', '😊', '😍', '😘', '😜', '😎', '🔥', '👑', '💎', '✨', '💀', '🤡', '💩', '👻', '👾', '👿', '❤️', '💔', '💯', '👍', '👎', '✊', '✌️', '🚀', '💵', '🪐'];
 
 const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   const hasPremium = true;
 
-  const [view, setView] = useState('profile'); // 'profile' | 'feed' | 'messages' | 'notifications'
+  const [view, setView] = useState('profile');
   const [postText, setPostText] = useState('');
   const [posts, setPosts] = useState([]);
   const [activeTab, setActiveTab] = useState('posts');
   const [isEditing, setIsEditing] = useState(false);
   const [activePostComments, setActivePostComments] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
-
-  // Состояния для переключателей панелей эмодзи
   const [showPostEmoji, setShowPostEmoji] = useState(false);
-  const [showCommentEmoji, setShowCommentEmoji] = useState({}); // { [postId]: boolean }
+  const [showCommentEmoji, setShowCommentEmoji] = useState({});
 
-  // Рефы для точной вставки эмодзи по позиции курсора
   const postInputRef = useRef(null);
-  const commentInputRefs = useRef({}); // { [postId]: element }
+  const commentInputRefs = useRef({});
 
   const [currentProfile, setCurrentProfile] = useState(user.username);
   const isOwnProfile = currentProfile === user.username;
@@ -49,7 +43,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   const [shouldRenderLoader, setShouldRenderLoader] = useState(true);
   const [animateContent, setAnimateContent] = useState(false);
 
-const [profileData, setProfileData] = useState({
+  const [profileData, setProfileData] = useState({
     username: '',
     handle: '',
     followers: 0,
@@ -60,14 +54,12 @@ const [profileData, setProfileData] = useState({
     is_verified: false
   });
 
-  // СОСТОЯНИЯ ДЛЯ ЛИЧНЫХ СООБЩЕНИЙ
   const [chats, setChats] = useState([]);
-  const [activeChat, setActiveChat] = useState(null); 
+  const [activeChat, setActiveChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
   const messagesEndRef = useRef(null);
 
-  // Скролл к последнему сообщению
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -78,7 +70,6 @@ const [profileData, setProfileData] = useState({
     }
   }, [messages, view, activeChat]);
 
-  // Загрузка списка чатов
   const loadChats = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/messages/chats?username=${user.username}`);
@@ -91,8 +82,8 @@ const [profileData, setProfileData] = useState({
     }
   }, [user.username]);
 
-  // Загрузка сообщений конкретного чата
   const loadMessages = useCallback(async (withUser) => {
+    if (!withUser) return;
     try {
       const res = await fetch(`${API_BASE_URL}/api/messages/history?user1=${user.username}&user2=${withUser}`);
       if (res.ok) {
@@ -104,7 +95,6 @@ const [profileData, setProfileData] = useState({
     }
   }, [user.username]);
 
-  // Интервал для обновления чата и сообщений
   useEffect(() => {
     if (view === 'messages') {
       loadChats();
@@ -113,7 +103,7 @@ const [profileData, setProfileData] = useState({
         if (activeChat) {
           loadMessages(activeChat.username);
         }
-      }, 4000); 
+      }, 4000);
       return () => clearInterval(interval);
     }
   }, [view, activeChat, loadChats, loadMessages]);
@@ -121,7 +111,7 @@ const [profileData, setProfileData] = useState({
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !activeChat) return;
     const textToSend = messageInput;
-    setMessageInput(''); 
+    setMessageInput('');
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/messages`, {
@@ -136,7 +126,10 @@ const [profileData, setProfileData] = useState({
       if (res.ok) {
         const newMsg = await res.json();
         setMessages(prev => [...prev, newMsg]);
-        loadChats(); 
+        loadChats();
+      } else {
+        const errData = await res.json();
+        console.error("Ошибка отправки:", errData.error);
       }
     } catch (err) {
       console.error("Ошибка отправки сообщения:", err);
@@ -146,7 +139,6 @@ const [profileData, setProfileData] = useState({
   const handleOpenChatFromProfile = (targetUser) => {
     setAnimateContent(false);
     setActiveChat({ username: targetUser });
-    loadMessages(targetUser);
     setView('messages');
   };
 
@@ -252,10 +244,15 @@ const [profileData, setProfileData] = useState({
         if (res.ok) {
           const updated = await res.json();
           setIsEditing(false);
+          // Обновляем локальные данные профиля
+          setProfileData(prev => ({ ...prev, username: updated.username, handle: updated.handle }));
           if (onUpdateUser) onUpdateUser(updated);
           if (isOwnProfile && updated.username !== currentProfile) {
             setCurrentProfile(updated.username);
           }
+        } else {
+          const err = await res.json();
+          console.error("Ошибка сохранения:", err.error);
         }
       } catch (err) {
         console.error("Ошибка сохранения:", err);
@@ -302,6 +299,7 @@ const [profileData, setProfileData] = useState({
       const newComments = { ...activePostComments };
       delete newComments[postId];
       setActivePostComments(newComments);
+      // Сбрасываем панель эмодзи для этого поста при закрытии комментариев
       setShowCommentEmoji(prev => ({ ...prev, [postId]: false }));
     } else {
       try {
@@ -367,7 +365,6 @@ const [profileData, setProfileData] = useState({
     } catch (err) { console.error(err); }
   };
 
-  // Вставка эмодзи в текстовое поле поста с сохранением фокуса курсора
   const addEmojiToPost = (emoji) => {
     const textarea = postInputRef.current;
     if (!textarea) return;
@@ -386,7 +383,6 @@ const [profileData, setProfileData] = useState({
     }, 0);
   };
 
-  // Вставка эмодзи в поле комментария конкретного поста
   const addEmojiToComment = (postId, emoji) => {
     const input = commentInputRefs.current[postId];
     if (!input) return;
@@ -436,9 +432,7 @@ const [profileData, setProfileData] = useState({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             )}
-            <span>
-              {isEditing ? 'Сохранить' : 'Редактировать'}
-            </span>
+            <span>{isEditing ? 'Сохранить' : 'Редактировать'}</span>
           </button>
         ) : (
           <>
@@ -465,9 +459,7 @@ const [profileData, setProfileData] = useState({
   };
 
   return (
-   
-       <div className="min-h-screen bg-[#080808] text-white flex justify-center items-start pt-4 md:pt-8 px-3 md:px-6 pb-24 lg:pb-8 antialiased"
-         style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div className="min-h-screen bg-[#080808] text-white flex justify-center items-start pt-4 md:pt-8 px-3 md:px-6 pb-24 lg:pb-8 antialiased" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
       
       <style>{`
         @keyframes flow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
@@ -484,20 +476,14 @@ const [profileData, setProfileData] = useState({
         .interact-btn span { font-size: 11px; font-weight: 800; text-transform: uppercase; }
         .comment-input { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 8px 12px; width: 100%; outline: none; color: white; font-size: 13px; }
         .btn-fixed { flex-shrink: 0 !important; white-space: nowrap !important; }
-
-        /* ПЛАВНЫЕ КЛАССЫ ДЛЯ АНИМАЦИИ */
         .fade-loader { transition: opacity 0.30s ease-in-out, visibility 0.30s; opacity: 1; visibility: visible; }
         .fade-loader.hidden { opacity: 0; visibility: hidden; }
-        
         .animated-content { opacity: 0; transform: translateY(10px); transition: opacity 0.4s cubic-bezier(0.215, 0.610, 0.355, 1), transform 0.4s cubic-bezier(0.215, 0.610, 0.355, 1); }
         .animated-content.visible { opacity: 1; transform: translateY(0); }
-        
-        /* Кастомный неоновый спиннер */
         .neon-spinner { width: 40px; height: 40px; border: 3px border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.03); border-top-color: #ff2a5f; animation: spin 0.8s linear infinite; filter: drop-shadow(0 0 6px #ff2a5f); }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
-      {/* КРАСИВЫЙ ПЛАВНЫЙ ЭКРАН ЗАГРУЗКИ */}
       {shouldRenderLoader && (
         <div className={`fixed inset-0 bg-[#080808] z-[9999] flex flex-col gap-4 items-center justify-center fade-loader ${!isLoading ? 'hidden' : ''}`}>
           <div className="neon-spinner"></div>
@@ -505,12 +491,8 @@ const [profileData, setProfileData] = useState({
         </div>
       )}
 
-
-      {/* ========================================================================= */}
-
       <div className="w-full max-w-[1100px] flex flex-col lg:flex-row gap-6 justify-center">
          
-        {/* Сайдбар */}
         <aside className="fixed bottom-0 left-0 w-full lg:w-[240px] lg:static flex flex-row lg:flex-col justify-between lg:justify-start gap-5 glass-card p-3 sm:p-4 lg:p-5 rounded-t-[24px] lg:rounded-[28px] h-fit lg:sticky lg:top-8 shadow-2xl z-[999] border-t border-white/10 lg:border-none">
           <div className="hidden lg:flex justify-center py-4 cursor-pointer" onClick={() => handleViewChange('feed')}>
             <span className="sss-logo text-4xl font-black italic tracking-tighter select-none">SSS</span>
@@ -550,14 +532,11 @@ const [profileData, setProfileData] = useState({
           </div>
         </aside>
 
-        {/* Основной контент */}
         <main className={`flex-1 w-full max-w-[680px] flex flex-col gap-4 md:gap-5 animated-content ${animateContent ? 'visible' : ''}`}>
           
-          {/* РЕНДЕР СТРАНИЦЫ ЛС */}
           {view === 'messages' && (
             <div className="glass-card rounded-2xl md:rounded-[32px] overflow-hidden shadow-2xl border-white/10 flex h-[75vh] md:h-[80vh] w-full">
               
-              {/* Левая колонка: Список Чатов */}
               <div className={`w-full md:w-2/5 border-r border-white/5 flex flex-col ${activeChat ? 'hidden md:flex' : 'flex'}`}>
                 <div className="p-4 border-b border-white/5 flex items-center justify-between">
                   <h1 className="text-lg md:text-xl font-black uppercase italic sss-logo tracking-tight">Чаты</h1>
@@ -581,8 +560,8 @@ const [profileData, setProfileData] = useState({
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-baseline mb-0.5">
                             <span className="font-black text-xs uppercase tracking-tight text-white/90 truncate">{chat.username}</span>
-                            {chat.last_message_time && (
-                              <span className="text-[8px] text-gray-600 font-bold uppercase">{new Date(chat.last_message_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            {chat.created_at && (
+                              <span className="text-[8px] text-gray-600 font-bold uppercase">{new Date(chat.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                             )}
                           </div>
                           <p className="text-gray-500 font-medium text-xs truncate leading-tight">{chat.last_message || 'Нет сообщений'}</p>
@@ -593,11 +572,9 @@ const [profileData, setProfileData] = useState({
                 </div>
               </div>
 
-              {/* Правая колонка: Окно Открытого Чата */}
               <div className={`flex-1 flex flex-col bg-black/20 ${!activeChat ? 'hidden md:flex items-center justify-center' : 'flex'}`}>
                 {activeChat ? (
                   <>
-                    {/* Хедер чата */}
                     <div className="p-4 border-b border-white/5 bg-white/[0.01] flex items-center gap-3 h-[60px] flex-shrink-0">
                       <button onClick={() => setActiveChat(null)} className="md:hidden p-1.5 text-gray-400 hover:text-white mr-1 bg-white/5 rounded-lg">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
@@ -611,7 +588,6 @@ const [profileData, setProfileData] = useState({
                       </div>
                     </div>
 
-                    {/* Сообщения */}
                     <div className="flex-1 overflow-y-auto p-4 space-y-3 chat-scroll bg-[#0b0b0b]/40">
                       {messages.map((msg, idx) => {
                         const isMe = msg.sender === user.username;
@@ -629,7 +605,6 @@ const [profileData, setProfileData] = useState({
                       <div ref={messagesEndRef} />
                     </div>
 
-                    {/* Поле ввода */}
                     <div className="p-3 border-t border-white/5 bg-white/[0.01] flex gap-2 items-center flex-shrink-0">
                       <input
                         type="text"
@@ -655,7 +630,6 @@ const [profileData, setProfileData] = useState({
             </div>
           )}
 
-          {/* РЕНДЕР СТРАНИЦЫ УВЕДОМЛЕНИЙ */}
           {view === 'notifications' && (
             <div className="glass-card rounded-2xl md:rounded-[32px] overflow-hidden shadow-2xl border-white/10 min-h-[50vh] flex flex-col">
               <div className="p-6 border-b border-white/5 text-center sm:text-left">
@@ -692,7 +666,6 @@ const [profileData, setProfileData] = useState({
                   </div>
                 </div>
 
-                {/* Инфо-зона профиля */}
                 <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start text-center sm:text-left gap-4">
                   <div className="space-y-2.5 w-full">
                     {isEditing ? (
@@ -718,19 +691,16 @@ const [profileData, setProfileData] = useState({
                     </div>
                   </div>
 
-                  {/* Достижения */}
                   <div className="bg-white/5 p-3 rounded-2xl border border-white/5 flex gap-2.5 h-fit justify-center">
                       <div className="achievement-card w-9 h-9 bg-yellow-500/20 rounded-xl flex items-center justify-center text-lg">🏆</div>
                       <div className="achievement-card w-9 h-9 bg-orange-500/20 rounded-xl flex items-center justify-center text-lg">🔥</div>
                   </div>
                 </div>
 
-                {/* Мобильные кнопки */}
                 <div className="flex md:hidden gap-2 w-full mt-5 justify-center items-center">
                   <ActionButtons isMobile={true} />
                 </div>
 
-                {/* Вкладки Записи/Репосты */}
                 <div className="flex mt-4 md:mt-6 p-1 bg-black/40 rounded-xl">
                   <div onClick={() => handleTabChange('posts')} className={`flex-1 py-2.5 text-center rounded-lg font-black text-[11px] cursor-pointer uppercase transition-all ${activeTab === 'posts' ? 'bg-white/10 text-white' : 'text-gray-600 hover:text-gray-400'}`}>Записи</div>
                   <div onClick={() => handleTabChange('reposts')} className={`flex-1 py-2.5 text-center rounded-lg font-black text-[11px] cursor-pointer uppercase transition-all ${activeTab === 'reposts' ? 'bg-white/10 text-white' : 'text-gray-600 hover:text-gray-400'}`}>Репосты</div>
@@ -743,7 +713,6 @@ const [profileData, setProfileData] = useState({
               <div className="px-2 mb-2"><h1 className="text-2xl md:text-3xl font-black tracking-tight uppercase italic sss-logo text-center sm:text-left">Global Stream</h1></div>
           )}
 
-          {/* Создание нового поста */}
           {view !== 'messages' && view !== 'notifications' && (view === 'feed' || (isOwnProfile && activeTab === 'posts')) && (
             <div className="glass-card rounded-2xl md:rounded-[28px] p-4 md:p-6 shadow-xl relative">
               <div className="flex gap-3 md:gap-4">
@@ -759,7 +728,6 @@ const [profileData, setProfileData] = useState({
                 />
               </div>
 
-              {/* ЗОНА ДЛЯ ЭМОДЗИ ПОСТА */}
               {showPostEmoji && (
                 <div className="emoji-bar mt-3 p-2.5 rounded-xl flex flex-wrap gap-2 max-h-24 overflow-y-auto chat-scroll animate-fadeIn">
                   {EMOJI_LIST.map((emoji, i) => (
@@ -775,7 +743,6 @@ const [profileData, setProfileData] = useState({
               )}
 
               <div className="flex justify-between items-center mt-3">
-                {/* Кнопка триггера эмодзи */}
                 <button 
                   onClick={() => setShowPostEmoji(!showPostEmoji)}
                   className={`p-2 rounded-xl transition-all border ${showPostEmoji ? 'bg-[#ff2a5f]/10 border-[#ff2a5f]/30 text-[#ff2a5f]' : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'}`}
@@ -791,7 +758,6 @@ const [profileData, setProfileData] = useState({
             </div>
           )}
 
-          {/* Лента Постов */}
           {view !== 'messages' && view !== 'notifications' && (
             <div className="flex flex-col gap-4 mb-16">
               {posts.length > 0 ? (
@@ -805,7 +771,6 @@ const [profileData, setProfileData] = useState({
                         <div>
                           <div className="flex items-center gap-1.5">
                             <p onClick={() => handleViewChange('profile', post.username)} className="font-black text-xs md:text-[13px] uppercase tracking-tight text-white/90 cursor-pointer hover:text-[#ff2a5f] transition-colors">{post.username}</p>
-                            {/* ЛОГИКА ГАЛОЧКИ ДЛЯ КАЖДОГО ПОСТА В ЛЕНТЕ */}
                             {post.is_verified && (
                               <div className="w-3.5 h-3.5 bg-[#ff2a5f] rounded-full flex items-center justify-center text-[7px] text-white font-bold shadow-[0_0_8px_rgba(255,42,95,0.4)] flex-shrink-0" title="Верифицированный аккаунт">✓</div>
                             )}
@@ -821,7 +786,6 @@ const [profileData, setProfileData] = useState({
                     </div>
                     <p className="pl-1 text-sm md:text-[15px] text-gray-300 leading-normal mb-5">{post.content}</p>
                     
-                    {/* Кнопки взаимодействий */}
                     <div className="flex items-center justify-between sm:justify-start gap-4 sm:gap-8 pt-3 border-t border-white/5">
                       <button className={`interact-btn ${post.likes > 0 ? 'active' : ''}`} onClick={() => handleLike(post.id)}>
                         <svg fill={post.likes > 0 ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
@@ -837,7 +801,6 @@ const [profileData, setProfileData] = useState({
                       </button>
                     </div>
 
-                    {/* Блок комментариев */}
                     {activePostComments[post.id] && (
                       <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
                         <div className="flex flex-col gap-3 max-h-60 overflow-y-auto pr-2">
@@ -852,7 +815,6 @@ const [profileData, setProfileData] = useState({
                           ))}
                         </div>
 
-                        {/* ПАНЕЛЬ ЭМОДЗИ ДЛЯ КОММЕНТАРИЕВ */}
                         {showCommentEmoji[post.id] && (
                           <div className="emoji-bar p-2 rounded-xl flex flex-wrap gap-1.5 max-h-20 overflow-y-auto chat-scroll animate-fadeIn">
                             {EMOJI_LIST.map((emoji, i) => (
@@ -868,7 +830,6 @@ const [profileData, setProfileData] = useState({
                         )}
 
                         <div className="flex gap-2 items-center">
-                          {/* Переключатель эмодзи коммента */}
                           <button 
                             onClick={() => setShowCommentEmoji(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
                             className={`p-2.5 h-10 rounded-xl transition-all border ${showCommentEmoji[post.id] ? 'bg-[#ff2a5f]/10 border-[#ff2a5f]/30 text-[#ff2a5f]' : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'}`}

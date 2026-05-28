@@ -5,7 +5,6 @@ const bcrypt = require('bcrypt');
 require('dotenv').config();
 
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 
@@ -21,6 +20,7 @@ const pool = isProduction
       connectionString: "postgresql://postgres:Kirilmaxim123@localhost:5432/sss_db?schema=public"
     });
 
+// ========== ИНИЦИАЛИЗАЦИЯ БД ==========
 const initDB = async () => {
   try {
     await pool.query(`
@@ -39,7 +39,6 @@ const initDB = async () => {
         is_verified BOOLEAN DEFAULT false
       );
     `);
-
     await pool.query(`
       CREATE TABLE IF NOT EXISTS messages (
         id SERIAL PRIMARY KEY,
@@ -49,7 +48,6 @@ const initDB = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-
     await pool.query(`
       CREATE TABLE IF NOT EXISTS posts (
         id SERIAL PRIMARY KEY,
@@ -61,7 +59,6 @@ const initDB = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-
     await pool.query(`
       CREATE TABLE IF NOT EXISTS comments (
         id SERIAL PRIMARY KEY,
@@ -71,7 +68,6 @@ const initDB = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-
     await pool.query(`
       CREATE TABLE IF NOT EXISTS post_likes (
         id SERIAL PRIMARY KEY,
@@ -79,7 +75,6 @@ const initDB = async () => {
         username TEXT
       );
     `);
-
     await pool.query(`
       CREATE TABLE IF NOT EXISTS reposts (
         id SERIAL PRIMARY KEY,
@@ -88,7 +83,6 @@ const initDB = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-
     await pool.query(`
       CREATE TABLE IF NOT EXISTS follows (
         follower_username TEXT,
@@ -96,23 +90,45 @@ const initDB = async () => {
         PRIMARY KEY (follower_username, following_username)
       );
     `);
-
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        user_to TEXT NOT NULL,
+        user_from TEXT NOT NULL,
+        type TEXT NOT NULL,
+        post_id INTEGER,
+        content TEXT,
+        is_read BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
     console.log('✅ База данных синхронизирована');
   } catch (err) {
     console.error('❌ Ошибка инициализации БД:', err);
   }
 };
-
 initDB();
 
-// --- ПРОФИЛЬ И ЮЗЕРЫ ---
+// ========== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ УВЕДОМЛЕНИЙ ==========
+async function createNotification(userTo, userFrom, type, postId = null, extraContent = null) {
+  if (userTo === userFrom) return;
+  try {
+    await pool.query(
+      `INSERT INTO notifications (user_to, user_from, type, post_id, content) VALUES ($1, $2, $3, $4, $5)`,
+      [userTo, userFrom, type, postId, extraContent]
+    );
+  } catch (err) {
+    console.error('Ошибка создания уведомления:', err);
+  }
+}
+
+// ========== ПРОФИЛЬ И ЮЗЕРЫ ==========
 app.get('/api/users/:username', async (req, res) => {
   const { username } = req.params;
   const viewer = req.query.viewer;
   try {
     const userRes = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
     if (userRes.rows.length === 0) return res.status(404).json({ error: "Юзер не найден" });
-    
     let userData = userRes.rows[0];
     if (viewer) {
       const followCheck = await pool.query(
@@ -131,6 +147,20 @@ app.put('/api/users/:oldUsername', async (req, res) => {
   const { oldUsername } = req.params;
   const { username, handle } = req.body;
   try {
+    // Проверка уникальности нового username
+    if (username !== oldUsername) {
+      const check = await pool.query('SELECT 1 FROM users WHERE username = $1', [username]);
+      if (check.rows.length > 0) {
+        return res.status(400).json({ error: "Пользователь с таким именем уже существует" });
+      }
+    }
+    if (handle !== oldUsername.toLowerCase()) {
+      const checkHandle = await pool.query('SELECT 1 FROM users WHERE handle = $1', [handle]);
+      if (checkHandle.rows.length > 0) {
+        return res.status(400).json({ error: "Такой handle уже занят" });
+      }
+    }
+
     await pool.query('BEGIN');
     const result = await pool.query(
       'UPDATE users SET username = $1, handle = $2 WHERE username = $3 RETURNING *',
@@ -138,7 +168,7 @@ app.put('/api/users/:oldUsername', async (req, res) => {
     );
     if (result.rows.length === 0) throw new Error('Пользователь не найден');
 
-    // Обновляем связанные таблицы
+    // Обновляем все связанные таблицы
     await pool.query('UPDATE posts SET username = $1 WHERE username = $2', [username, oldUsername]);
     await pool.query('UPDATE comments SET username = $1 WHERE username = $2', [username, oldUsername]);
     await pool.query('UPDATE post_likes SET username = $1 WHERE username = $2', [username, oldUsername]);
@@ -147,6 +177,8 @@ app.put('/api/users/:oldUsername', async (req, res) => {
     await pool.query('UPDATE follows SET following_username = $1 WHERE following_username = $2', [username, oldUsername]);
     await pool.query('UPDATE messages SET sender = $1 WHERE sender = $2', [username, oldUsername]);
     await pool.query('UPDATE messages SET receiver = $1 WHERE receiver = $2', [username, oldUsername]);
+    await pool.query('UPDATE notifications SET user_from = $1 WHERE user_from = $2', [username, oldUsername]);
+    await pool.query('UPDATE notifications SET user_to = $1 WHERE user_to = $2', [username, oldUsername]);
 
     await pool.query('COMMIT');
     res.json(result.rows[0]);
@@ -156,15 +188,12 @@ app.put('/api/users/:oldUsername', async (req, res) => {
   }
 });
 
-// --- ПОДПИСКИ ---
+// ========== ПОДПИСКИ ==========
 app.post('/api/users/:username/follow', async (req, res) => {
   const targetUser = req.params.username;
   const { follower } = req.body;
-
   if (targetUser === follower) return res.status(400).json({ error: "Нельзя подписаться на себя" });
-
   try {
-    // Проверяем существование обоих пользователей
     const [targetExists, followerExists] = await Promise.all([
       pool.query('SELECT 1 FROM users WHERE username = $1', [targetUser]),
       pool.query('SELECT 1 FROM users WHERE username = $1', [follower])
@@ -181,11 +210,12 @@ app.post('/api/users/:username/follow', async (req, res) => {
       await pool.query('COMMIT');
       return res.json({ message: "Уже подписан" });
     }
-
     await pool.query('INSERT INTO follows (follower_username, following_username) VALUES ($1, $2)', [follower, targetUser]);
     await pool.query('UPDATE users SET followers = followers + 1 WHERE username = $1', [targetUser]);
     await pool.query('UPDATE users SET following = following + 1 WHERE username = $1', [follower]);
     await pool.query('COMMIT');
+
+    await createNotification(targetUser, follower, 'follow');
     res.json({ success: true });
   } catch (err) {
     await pool.query('ROLLBACK');
@@ -196,7 +226,6 @@ app.post('/api/users/:username/follow', async (req, res) => {
 app.delete('/api/users/:username/follow', async (req, res) => {
   const targetUser = req.params.username;
   const { follower } = req.body;
-
   try {
     await pool.query('BEGIN');
     const result = await pool.query(
@@ -215,7 +244,7 @@ app.delete('/api/users/:username/follow', async (req, res) => {
   }
 });
 
-// --- ПОСТЫ ---
+// ========== ПОСТЫ ==========
 app.get('/api/posts', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -254,11 +283,9 @@ app.post('/api/posts', async (req, res) => {
       [username, content]
     );
     await pool.query('UPDATE users SET rating = rating + 1 WHERE username = $1', [username]);
-    
     const userCheck = await pool.query('SELECT is_verified FROM users WHERE username = $1', [username]);
     const savedPost = result.rows[0];
     savedPost.is_verified = userCheck.rows[0]?.is_verified || false;
-
     res.json(savedPost);
   } catch (err) {
     res.status(500).json({ error: "Ошибка публикации" });
@@ -268,11 +295,9 @@ app.post('/api/posts', async (req, res) => {
 app.delete('/api/posts/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    // Сначала узнаем автора поста, чтобы потом уменьшить его рейтинг
     const post = await pool.query('SELECT username FROM posts WHERE id = $1', [id]);
     if (post.rows.length === 0) return res.status(404).json({ error: "Пост не найден" });
     const author = post.rows[0].username;
-
     await pool.query('BEGIN');
     await pool.query('DELETE FROM posts WHERE id = $1', [id]);
     await pool.query('UPDATE users SET rating = GREATEST(0, rating - 1) WHERE username = $1', [author]);
@@ -284,16 +309,76 @@ app.delete('/api/posts/:id', async (req, res) => {
   }
 });
 
-// --- РЕПОСТЫ ---
+// ========== ЛАЙКИ (с уведомлением) ==========
+app.post('/api/posts/:id/like', async (req, res) => {
+  const { id } = req.params;
+  const { username } = req.body;
+  try {
+    const postOwner = await pool.query('SELECT username FROM posts WHERE id = $1', [id]);
+    if (postOwner.rows.length === 0) return res.status(404).json({ error: "Пост не найден" });
+    const owner = postOwner.rows[0].username;
+
+    const check = await pool.query('SELECT * FROM post_likes WHERE post_id = $1 AND username = $2', [id, username]);
+    if (check.rows.length > 0) {
+      await pool.query('DELETE FROM post_likes WHERE post_id = $1 AND username = $2', [id, username]);
+      await pool.query('UPDATE posts SET likes = GREATEST(0, likes - 1) WHERE id = $1', [id]);
+    } else {
+      await pool.query('INSERT INTO post_likes (post_id, username) VALUES ($1, $2)', [id, username]);
+      await pool.query('UPDATE posts SET likes = likes + 1 WHERE id = $1', [id]);
+      await createNotification(owner, username, 'like', id);
+    }
+    const updated = await pool.query('SELECT likes FROM posts WHERE id = $1', [id]);
+    res.json(updated.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========== КОММЕНТАРИИ (с уведомлением) ==========
+app.get('/api/posts/:id/comments', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('SELECT * FROM comments WHERE post_id = $1 ORDER BY created_at ASC', [id]);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка загрузки" });
+  }
+});
+
+app.post('/api/posts/:id/comments', async (req, res) => {
+  const { id } = req.params;
+  const { username, content } = req.body;
+  try {
+    const postOwner = await pool.query('SELECT username FROM posts WHERE id = $1', [id]);
+    if (postOwner.rows.length === 0) return res.status(404).json({ error: "Пост не найден" });
+    const owner = postOwner.rows[0].username;
+
+    const result = await pool.query(
+      'INSERT INTO comments (post_id, username, content) VALUES ($1, $2, $3) RETURNING *',
+      [id, username, content]
+    );
+    await pool.query('UPDATE posts SET comments_count = comments_count + 1 WHERE id = $1', [id]);
+    await createNotification(owner, username, 'comment', id, content.substring(0, 100));
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка комментария" });
+  }
+});
+
+// ========== РЕПОСТЫ (с уведомлением) ==========
 app.post('/api/posts/:id/repost', async (req, res) => {
   const { id } = req.params;
   const { username } = req.body;
   try {
     const check = await pool.query('SELECT * FROM reposts WHERE post_id = $1 AND username = $2', [id, username]);
     if (check.rows.length > 0) return res.status(400).json({ error: "Уже репостнуто" });
-    
+    const postOwner = await pool.query('SELECT username FROM posts WHERE id = $1', [id]);
+    if (postOwner.rows.length === 0) return res.status(404).json({ error: "Пост не найден" });
+    const owner = postOwner.rows[0].username;
+
     await pool.query('INSERT INTO reposts (post_id, username) VALUES ($1, $2)', [id, username]);
     await pool.query('UPDATE posts SET reposts = reposts + 1 WHERE id = $1', [id]);
+    await createNotification(owner, username, 'repost', id);
     const updated = await pool.query('SELECT reposts FROM posts WHERE id = $1', [id]);
     res.json(updated.rows[0]);
   } catch (err) {
@@ -305,7 +390,6 @@ app.delete('/api/posts/:id/repost', async (req, res) => {
   const postId = req.params.id;
   const { username } = req.body;
   if (!username) return res.status(400).json({ error: 'Username is required' });
-
   try {
     const result = await pool.query('DELETE FROM reposts WHERE post_id = $1 AND username = $2', [postId, username]);
     if (result.rowCount > 0) {
@@ -335,52 +419,7 @@ app.get('/api/posts/reposts/:username', async (req, res) => {
   }
 });
 
-// --- КОММЕНТАРИИ И ЛАЙКИ ---
-app.post('/api/posts/:id/like', async (req, res) => {
-  const { id } = req.params;
-  const { username } = req.body;
-  try {
-    const check = await pool.query('SELECT * FROM post_likes WHERE post_id = $1 AND username = $2', [id, username]);
-    if (check.rows.length > 0) {
-      await pool.query('DELETE FROM post_likes WHERE post_id = $1 AND username = $2', [id, username]);
-      await pool.query('UPDATE posts SET likes = GREATEST(0, likes - 1) WHERE id = $1', [id]);
-    } else {
-      await pool.query('INSERT INTO post_likes (post_id, username) VALUES ($1, $2)', [id, username]);
-      await pool.query('UPDATE posts SET likes = likes + 1 WHERE id = $1', [id]);
-    }
-    const updated = await pool.query('SELECT likes FROM posts WHERE id = $1', [id]);
-    res.json(updated.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get('/api/posts/:id/comments', async (req, res) => {
-  const { id } = req.params;
-  try {
-    const result = await pool.query('SELECT * FROM comments WHERE post_id = $1 ORDER BY created_at ASC', [id]);
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: "Ошибка загрузки" });
-  }
-});
-
-app.post('/api/posts/:id/comments', async (req, res) => {
-  const { id } = req.params;
-  const { username, content } = req.body;
-  try {
-    const result = await pool.query(
-      'INSERT INTO comments (post_id, username, content) VALUES ($1, $2, $3) RETURNING *',
-      [id, username, content]
-    );
-    await pool.query('UPDATE posts SET comments_count = comments_count + 1 WHERE id = $1', [id]);
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: "Ошибка комментария" });
-  }
-});
-
-// --- АВТОРИЗАЦИЯ ---
+// ========== АВТОРИЗАЦИЯ ==========
 app.post('/api/register', async (req, res) => {
   const { username, email, password } = req.body;
   try {
@@ -417,19 +456,17 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// --- ЛИЧНЫЕ СООБЩЕНИЯ ---
+// ========== ЛИЧНЫЕ СООБЩЕНИЯ ==========
 app.post('/api/messages', async (req, res) => {
   const { sender, receiver, content } = req.body;
   if (!sender || !receiver || !content?.trim()) {
     return res.status(400).json({ error: "Все поля обязательны" });
   }
   try {
-    // Проверяем существование получателя
     const receiverExists = await pool.query('SELECT 1 FROM users WHERE username = $1', [receiver]);
     if (receiverExists.rows.length === 0) {
       return res.status(404).json({ error: "Получатель не найден" });
     }
-
     const result = await pool.query(
       'INSERT INTO messages (sender, receiver, content) VALUES ($1, $2, $3) RETURNING *',
       [sender, receiver, content]
@@ -479,4 +516,48 @@ app.get('/api/messages/chats', async (req, res) => {
   }
 });
 
+// ========== УВЕДОМЛЕНИЯ ==========
+app.get('/api/notifications', async (req, res) => {
+  const { username } = req.query;
+  if (!username) return res.status(400).json({ error: "Username required" });
+  try {
+    const result = await pool.query(
+      `SELECT n.*, u.is_verified as from_verified 
+       FROM notifications n
+       LEFT JOIN users u ON n.user_from = u.username
+       WHERE n.user_to = $1 
+       ORDER BY n.created_at DESC`,
+      [username]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/notifications/read', async (req, res) => {
+  const { notificationId, username } = req.body;
+  try {
+    if (notificationId) {
+      await pool.query('UPDATE notifications SET is_read = true WHERE id = $1 AND user_to = $2', [notificationId, username]);
+    } else {
+      await pool.query('UPDATE notifications SET is_read = true WHERE user_to = $1', [username]);
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/notifications', async (req, res) => {
+  const { username } = req.query;
+  try {
+    await pool.query('DELETE FROM notifications WHERE user_to = $1', [username]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========== ЗАПУСК ==========
 app.listen(PORT, () => console.log(`🔥 СЕРВЕР ЗАПУЩЕН НА ПОРТУ ${PORT}`));

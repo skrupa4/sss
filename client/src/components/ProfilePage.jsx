@@ -51,7 +51,8 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     memberSince: 'Май 2026',
     clan: 'Отсутствует',
     isSubscribed: false,
-    is_verified: false
+    is_verified: false,
+    bio: ''
   });
 
   const [chats, setChats] = useState([]);
@@ -60,9 +61,16 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
   const [messageInput, setMessageInput] = useState('');
   const messagesEndRef = useRef(null);
 
+  // Непрочитанные сообщения
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const [unreadChats, setUnreadChats] = useState({});
+
   // Уведомления
   const [notificationsList, setNotificationsList] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // Для live-обновления ленты
+  const [lastPostId, setLastPostId] = useState(0);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -92,22 +100,57 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
       if (res.ok) {
         const data = await res.json();
         setMessages(Array.isArray(data) ? data : []);
+        // Отметить как прочитанные, если чат открыт
+        await markChatAsRead(withUser);
       }
     } catch (err) {
       console.error("Ошибка загрузки сообщений:", err);
     }
   }, [user.username]);
 
+  const loadUnreadCounts = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/messages/unread-count?username=${user.username}`);
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadMessagesCount(data.count);
+      }
+      const resChats = await fetch(`${API_BASE_URL}/api/messages/unread-chats?username=${user.username}`);
+      if (resChats.ok) {
+        const chatsData = await resChats.json();
+        const unreadMap = {};
+        chatsData.forEach(chat => { unreadMap[chat.chat_user] = chat.unread_count; });
+        setUnreadChats(unreadMap);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, [user.username]);
+
+  const markChatAsRead = async (chatUser) => {
+    try {
+      await fetch(`${API_BASE_URL}/api/messages/read`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user.username, chatUser })
+      });
+      setUnreadChats(prev => ({ ...prev, [chatUser]: 0 }));
+      loadUnreadCounts();
+    } catch (err) { console.error(err); }
+  };
+
   useEffect(() => {
     if (view === 'messages') {
       loadChats();
+      loadUnreadCounts();
       const interval = setInterval(() => {
         loadChats();
+        loadUnreadCounts();
         if (activeChat) loadMessages(activeChat.username);
-      }, 4000);
+      }, 3000);
       return () => clearInterval(interval);
     }
-  }, [view, activeChat, loadChats, loadMessages]);
+  }, [view, activeChat, loadChats, loadUnreadCounts, loadMessages]);
 
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !activeChat) return;
@@ -123,6 +166,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         const newMsg = await res.json();
         setMessages(prev => [...prev, newMsg]);
         loadChats();
+        loadUnreadCounts();
       }
     } catch (err) {
       console.error("Ошибка отправки сообщения:", err);
@@ -205,7 +249,8 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
         const postsRes = await fetch(postsUrl);
         if (postsRes.ok) {
           const postsData = await postsRes.json();
-          setPosts(Array.isArray(postsData) ? postsData : []);
+          setPosts(postsData);
+          if (postsData.length > 0) setLastPostId(postsData[0].id);
         }
       }
     } catch (err) {
@@ -220,6 +265,22 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
       }, 300);
     }
   }, [currentProfile, view, activeTab, user.username, activeChat, loadChats, loadMessages]);
+
+  // Live-обновление ленты
+  useEffect(() => {
+    if (view !== 'feed') return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/posts?after_id=${lastPostId}`);
+        const newPosts = await res.json();
+        if (newPosts.length > 0) {
+          setPosts(prev => [...newPosts, ...prev]);
+          setLastPostId(newPosts[0].id);
+        }
+      } catch (err) { console.error(err); }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [view, lastPostId]);
 
   useEffect(() => {
     loadData();
@@ -259,7 +320,6 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
     }
   };
 
-  // ИСПРАВЛЕННЫЙ handleSaveProfile – без дублирования профиля
   const handleSaveProfile = async () => {
     if (isEditing) {
       try {
@@ -268,7 +328,8 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             username: profileData.username,
-            handle: profileData.handle
+            handle: profileData.handle,
+            bio: profileData.bio
           }),
         });
         if (res.ok) {
@@ -277,7 +338,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
           if (onUpdateUser) onUpdateUser(updatedUser);
           if (isOwnProfile) {
             setCurrentProfile(updatedUser.username);
-            setTimeout(() => loadData(), 100);
+            await loadData();
           } else {
             setProfileData(updatedUser);
           }
@@ -479,6 +540,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
               <div onClick={() => handleViewChange('messages')} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'messages' ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
                 <svg className={`w-5 h-5 ${view === 'messages' ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                 <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Сообщения</span>
+                {unreadMessagesCount > 0 && <span className="ml-auto bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{unreadMessagesCount}</span>}
               </div>
               <div onClick={() => handleViewChange('notifications')} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]`}>
                 <svg className="w-5 h-5 text-[#ff2a5f]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
@@ -581,6 +643,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
             <div onClick={() => handleViewChange('messages')} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'messages' ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
               <svg className={`w-5 h-5 ${view === 'messages' ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
               <span className="text-[14px] font-bold tracking-tight hidden sm:inline lg:inline">Сообщения</span>
+              {unreadMessagesCount > 0 && <span className="ml-auto bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{unreadMessagesCount}</span>}
             </div>
             <div onClick={() => handleViewChange('notifications')} className={`flex items-center justify-center lg:justify-start gap-3 p-3 cursor-pointer rounded-xl transition-all duration-300 flex-1 lg:flex-none ${view === 'notifications' ? 'bg-white/5 text-white lg:border-r-2 lg:border-[#ff2a5f]' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
               <svg className={`w-5 h-5 ${view === 'notifications' ? 'text-[#ff2a5f]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
@@ -627,6 +690,9 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                           </div>
                           <p className="text-gray-500 font-medium text-xs truncate leading-tight">{chat.last_message || 'Нет сообщений'}</p>
                         </div>
+                        {unreadChats[chat.username] > 0 && (
+                          <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                        )}
                       </div>
                     ))
                   )}
@@ -699,14 +765,20 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
                       <div className="flex flex-col gap-2 max-w-full sm:max-w-[260px] mx-auto sm:mx-0">
                         <input className="edit-input font-black" value={profileData.username} onChange={(e) => setProfileData({...profileData, username: e.target.value})} placeholder="Имя" />
                         <input className="edit-input text-gray-400" value={profileData.handle} onChange={(e) => setProfileData({...profileData, handle: e.target.value})} placeholder="Хэндл" />
+                        <textarea className="edit-input mt-2" rows="3" value={profileData.bio || ''} onChange={(e) => setProfileData({...profileData, bio: e.target.value})} placeholder="О себе" />
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center sm:justify-start gap-2">
-                        <h1 className={`text-xl md:text-2xl font-black tracking-tighter ${hasPremium ? 'premium-nick' : ''}`}>{profileData.username}</h1>
-                        {profileData.is_verified && (
-                          <div className="w-4 h-4 bg-[#ff2a5f] rounded-full flex items-center justify-center text-[8px] text-white font-bold shadow-[0_0_10px_rgba(255,42,95,0.4)] flex-shrink-0" title="Верифицированный аккаунт">✓</div>
+                      <>
+                        <div className="flex items-center justify-center sm:justify-start gap-2">
+                          <h1 className={`text-xl md:text-2xl font-black tracking-tighter ${hasPremium ? 'premium-nick' : ''}`}>{profileData.username}</h1>
+                          {profileData.is_verified && (
+                            <div className="w-4 h-4 bg-[#ff2a5f] rounded-full flex items-center justify-center text-[8px] text-white font-bold shadow-[0_0_10px_rgba(255,42,95,0.4)] flex-shrink-0" title="Верифицированный аккаунт">✓</div>
+                          )}
+                        </div>
+                        {profileData.bio && (
+                          <p className="text-xs text-gray-400 mt-1 max-w-md mx-auto sm:mx-0">{profileData.bio}</p>
                         )}
-                      </div>
+                      </>
                     )}
                     <div className="flex justify-center sm:justify-start gap-6 mt-3">
                       <p className="text-xs md:text-sm"><span className="font-black text-white">{profileData.followers}</span> <span className="text-gray-500 font-bold uppercase text-[9px] tracking-wider ml-1">Подписчики</span></p>
@@ -733,7 +805,7 @@ const ProfilePage = ({ user, onLogout, onUpdateUser }) => {
           )}
 
           {/* ЛЕНТА */}
-          {view === 'feed' && <div className="px-2 mb-2"><h1 className="text-2xl md:text-3xl font-black tracking-tight uppercase italic sss-logo text-center sm:text-left">Global Stream</h1></div>}
+          {view === 'feed' && <div className="px-2 mb-2"><h1 className="text-2xl md:text-3xl font-black tracking-tight uppercase italic sss-logo text-center sm:text-left">Лента</h1></div>}
 
           {/* ФОРМА СОЗДАНИЯ ПОСТА */}
           {view !== 'messages' && view !== 'notifications' && (view === 'feed' || (isOwnProfile && activeTab === 'posts')) && (

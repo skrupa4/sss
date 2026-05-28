@@ -36,7 +36,8 @@ const initDB = async () => {
         member_since TEXT DEFAULT 'Май 2026',
         clan TEXT DEFAULT 'SSS OWNER',
         is_premium BOOLEAN DEFAULT true,
-        is_verified BOOLEAN DEFAULT false
+        is_verified BOOLEAN DEFAULT false,
+        bio TEXT DEFAULT ''
       );
     `);
     await pool.query(`
@@ -45,6 +46,7 @@ const initDB = async () => {
         sender TEXT NOT NULL,
         receiver TEXT NOT NULL,
         content TEXT NOT NULL,
+        is_read BOOLEAN DEFAULT false,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -145,7 +147,7 @@ app.get('/api/users/:username', async (req, res) => {
 
 app.put('/api/users/:oldUsername', async (req, res) => {
   const { oldUsername } = req.params;
-  const { username, handle } = req.body;
+  const { username, handle, bio } = req.body;
   try {
     // Проверка уникальности нового username
     if (username !== oldUsername) {
@@ -163,8 +165,8 @@ app.put('/api/users/:oldUsername', async (req, res) => {
 
     await pool.query('BEGIN');
     const result = await pool.query(
-      'UPDATE users SET username = $1, handle = $2 WHERE username = $3 RETURNING *',
-      [username, handle, oldUsername]
+      'UPDATE users SET username = $1, handle = $2, bio = $3 WHERE username = $4 RETURNING *',
+      [username, handle, bio, oldUsername]
     );
     if (result.rows.length === 0) throw new Error('Пользователь не найден');
 
@@ -246,13 +248,26 @@ app.delete('/api/users/:username/follow', async (req, res) => {
 
 // ========== ПОСТЫ ==========
 app.get('/api/posts', async (req, res) => {
+  const afterId = req.query.after_id ? parseInt(req.query.after_id) : 0;
   try {
-    const result = await pool.query(`
+    let query = `
       SELECT p.*, u.is_verified 
       FROM posts p 
       LEFT JOIN users u ON p.username = u.username 
       ORDER BY p.created_at DESC
-    `);
+    `;
+    if (afterId > 0) {
+      query = `
+        SELECT p.*, u.is_verified 
+        FROM posts p 
+        LEFT JOIN users u ON p.username = u.username 
+        WHERE p.id > $1
+        ORDER BY p.created_at DESC
+      `;
+      const result = await pool.query(query, [afterId]);
+      return res.json(result.rows);
+    }
+    const result = await pool.query(query);
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -468,7 +483,7 @@ app.post('/api/messages', async (req, res) => {
       return res.status(404).json({ error: "Получатель не найден" });
     }
     const result = await pool.query(
-      'INSERT INTO messages (sender, receiver, content) VALUES ($1, $2, $3) RETURNING *',
+      'INSERT INTO messages (sender, receiver, content, is_read) VALUES ($1, $2, $3, false) RETURNING *',
       [sender, receiver, content]
     );
     res.json(result.rows[0]);
@@ -513,6 +528,51 @@ app.get('/api/messages/chats', async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: "Ошибка получения списка чатов: " + err.message });
+  }
+});
+
+// Непрочитанные сообщения
+app.get('/api/messages/unread-count', async (req, res) => {
+  const { username } = req.query;
+  try {
+    const result = await pool.query(
+      'SELECT COUNT(*) FROM messages WHERE receiver = $1 AND is_read = false',
+      [username]
+    );
+    res.json({ count: parseInt(result.rows[0].count) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/messages/unread-chats', async (req, res) => {
+  const { username } = req.query;
+  try {
+    const result = await pool.query(
+      `SELECT 
+         CASE WHEN sender = $1 THEN receiver ELSE sender END as chat_user,
+         COUNT(*) as unread_count
+       FROM messages
+       WHERE receiver = $1 AND is_read = false
+       GROUP BY chat_user`,
+      [username]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/messages/read', async (req, res) => {
+  const { username, chatUser } = req.body;
+  try {
+    await pool.query(
+      'UPDATE messages SET is_read = true WHERE receiver = $1 AND sender = $2 AND is_read = false',
+      [username, chatUser]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

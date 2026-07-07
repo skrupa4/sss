@@ -17,7 +17,7 @@ const pool = isProduction
       ssl: { rejectUnauthorized: false }
     })
   : new Pool({
-      connectionString: "postgresql://postgres:Kirilmaxim123@localhost:5432/sss_db?schema=public"
+      connectionString: "postgresql://sss_db_b924_user:j0ZD3wLvXGOFS9rsUmnhOZcW9PfDW681@dpg-d96nlbuq1p3s73d2vneg-a.oregon-postgres.render.com/sss_db_b924"
     });
 
 // ========== ИНИЦИАЛИЗАЦИЯ БД ==========

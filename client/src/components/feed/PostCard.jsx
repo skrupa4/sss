@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import avatar from '@/components/common/avatar';
+import Avatar from '@/components/common/Avatar';
 import EmojiPicker from '@/components/common/EmojiPicker';
 const PostCard = ({
   post,

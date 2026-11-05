@@ -32,21 +32,17 @@ const MainAppContent = ({ user, onLogout, onUpdateUser }) => {
   const socket = useSocket();
   const isOwnProfile = currentProfile === user.username;
 
-  // --- Real-time WebSocket слушатели (прием уведомлений и сообщений IRL) ---
   useEffect(() => {
     if (!socket) return;
-
     socket.on('notification', (newNotif) => {
       setNotifications(prev => [newNotif, ...prev]);
       setUnreadNotifsCount(prev => prev + 1);
     });
-
     return () => {
       socket.off('notification');
     };
   }, [socket]);
 
-  // Загрузка данных профиля и постов
   const loadProfile = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/users/${currentProfile}?viewer=${user.username}`);

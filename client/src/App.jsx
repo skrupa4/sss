@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import ProfilePage from "./pages/ProfilePage"; 
-import AuthPage from "./pages/AuthPage";
+import ProfilePage from "./components/pages/ProfilePage"; 
+import AuthPage from "./components/pages/AuthPage";
 
 function App() {
   const [user, setUser] = useState(null);

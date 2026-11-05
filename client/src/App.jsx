@@ -5,14 +5,13 @@ import AuthPage from "./pages/AuthPage";
 function App() {
   const [user, setUser] = useState(null);
 
-  // Эффект для автоматического входа при загрузке страницы
   useEffect(() => {
     const savedUser = localStorage.getItem('sss_user');
     if (savedUser) {
       try {
         setUser(JSON.parse(savedUser));
       } catch (e) {
-        console.error("Ошибка парсинга пользователя из localStorage", e);
+        console.error("Ошибка парсинга пользователя", e);
         localStorage.removeItem('sss_user');
       }
     }

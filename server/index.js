@@ -1,10 +1,22 @@
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 require('dotenv').config();
 
 const app = express();
+const server = http.createServer(app);
+
+// Настраиваем Socket.io с поддержкой CORS
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE"]
+  }
+});
+
 app.use(cors());
 app.use(express.json());
 
@@ -20,6 +32,7 @@ const pool = isProduction
       connectionString: "postgresql://sss_db_ctu7_user:YshkrYR2597IUXF3UKRKYzuYv8ka7QOX@dpg-dbmaplff3r2c73843rog-a.oregon-postgres.render.com/sss_db_ctu7"
     });
 
+// Инициализация структуры базы данных и добавление новых колонок (аватарка и т.д.)
 const initDB = async () => {
   try {
     await pool.query(`
@@ -36,10 +49,13 @@ const initDB = async () => {
         clan TEXT DEFAULT 'SSS OWNER',
         is_premium BOOLEAN DEFAULT true,
         is_verified BOOLEAN DEFAULT false,
-        bio TEXT DEFAULT ''
+        bio TEXT DEFAULT '',
+        avatar_url TEXT DEFAULT ''
       );
     `);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT DEFAULT ''`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT DEFAULT ''`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS clan TEXT DEFAULT 'SSS OWNER'`);
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS messages (
@@ -113,17 +129,71 @@ const initDB = async () => {
   }
 };
 initDB();
+
+// Хранилище активных WebSocket-подключений по юзернеймам
+const onlineUsers = new Map();
+
+io.on('connection', (socket) => {
+  const username = socket.handshake.query.username;
+  if (username) {
+    onlineUsers.set(username, socket.id);
+  }
+
+  // Обработка отправки сообщений в реальном времени
+  socket.on('send_message', async (data) => {
+    const { sender, receiver, content } = data;
+    try {
+      const result = await pool.query(
+        'INSERT INTO messages (sender, receiver, content, is_read) VALUES ($1, $2, $3, false) RETURNING *',
+        [sender, receiver, content]
+      );
+      const savedMsg = result.rows[0];
+
+      // Отправляем получателю, если он онлайн
+      const receiverSocketId = onlineUsers.get(receiver);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit('receive_message', savedMsg);
+      }
+    } catch (err) {
+      console.error('Ошибка сокет-сообщения:', err);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    if (username) {
+      onlineUsers.delete(username);
+    }
+  });
+});
+
+// Функция создания уведомления с отправкой через WebSocket
 async function createNotification(userTo, userFrom, type, postId = null, extraContent = null) {
   if (userTo === userFrom) return;
   try {
-    await pool.query(
-      `INSERT INTO notifications (user_to, user_from, type, post_id, content) VALUES ($1, $2, $3, $4, $5)`,
+    const result = await pool.query(
+      `INSERT INTO notifications (user_to, user_from, type, post_id, content) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [userTo, userFrom, type, postId, extraContent]
     );
+    const newNotif = result.rows[0];
+
+    // Достаем аватарку отправителя для красивого уведомления
+    const userRes = await pool.query('SELECT avatar_url, is_verified FROM users WHERE username = $1', [userFrom]);
+    if (userRes.rows.length > 0) {
+      newNotif.avatar_url = userRes.rows[0].avatar_url;
+      newNotif.from_verified = userRes.rows[0].is_verified;
+    }
+
+    // Пушим в реалтайме через сокет
+    const targetSocketId = onlineUsers.get(userTo);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('notification', newNotif);
+    }
   } catch (err) {
     console.error('Ошибка создания уведомления:', err);
   }
 }
+
+// --- РОУТЫ API ---
 
 app.get('/api/users/:username', async (req, res) => {
   const { username } = req.params;
@@ -147,7 +217,7 @@ app.get('/api/users/:username', async (req, res) => {
 
 app.put('/api/users/:oldUsername', async (req, res) => {
   const { oldUsername } = req.params;
-  const { username, handle, bio } = req.body;
+  const { username, handle, bio, clan, avatar_url } = req.body;
   try {
     if (username !== oldUsername) {
       const check = await pool.query('SELECT 1 FROM users WHERE username = $1', [username]);
@@ -155,20 +225,15 @@ app.put('/api/users/:oldUsername', async (req, res) => {
         return res.status(400).json({ error: "Пользователь с таким именем уже существует" });
       }
     }
-    if (handle !== oldUsername.toLowerCase()) {
-      const checkHandle = await pool.query('SELECT 1 FROM users WHERE handle = $1', [handle]);
-      if (checkHandle.rows.length > 0) {
-        return res.status(400).json({ error: "Такой handle уже занят" });
-      }
-    }
 
     await pool.query('BEGIN');
     const result = await pool.query(
-      'UPDATE users SET username = $1, handle = $2, bio = $3 WHERE username = $4 RETURNING *',
-      [username, handle, bio || '', oldUsername]
+      'UPDATE users SET username = $1, handle = $2, bio = $3, clan = $4, avatar_url = $5 WHERE username = $6 RETURNING *',
+      [username, handle || username.toLowerCase(), bio || '', clan || 'SSS OWNER', avatar_url || '', oldUsername]
     );
     if (result.rows.length === 0) throw new Error('Пользователь не найден');
 
+    // Каскадное обновление юзернейма во всех связанных таблицах
     await pool.query('UPDATE posts SET username = $1 WHERE username = $2', [username, oldUsername]);
     await pool.query('UPDATE comments SET username = $1 WHERE username = $2', [username, oldUsername]);
     await pool.query('UPDATE post_likes SET username = $1 WHERE username = $2', [username, oldUsername]);
@@ -193,13 +258,6 @@ app.post('/api/users/:username/follow', async (req, res) => {
   const { follower } = req.body;
   if (targetUser === follower) return res.status(400).json({ error: "Нельзя подписаться на себя" });
   try {
-    const [targetExists, followerExists] = await Promise.all([
-      pool.query('SELECT 1 FROM users WHERE username = $1', [targetUser]),
-      pool.query('SELECT 1 FROM users WHERE username = $1', [follower])
-    ]);
-    if (targetExists.rows.length === 0) return res.status(404).json({ error: "Целевой пользователь не найден" });
-    if (followerExists.rows.length === 0) return res.status(404).json({ error: "Подписчик не найден" });
-
     await pool.query('BEGIN');
     const check = await pool.query(
       'SELECT 1 FROM follows WHERE follower_username = $1 AND following_username = $2',
@@ -244,26 +302,14 @@ app.delete('/api/users/:username/follow', async (req, res) => {
 });
 
 app.get('/api/posts', async (req, res) => {
-  const afterId = req.query.after_id ? parseInt(req.query.after_id) : 0;
   try {
-    if (afterId > 0) {
-      const result = await pool.query(`
-        SELECT p.*, u.is_verified 
-        FROM posts p 
-        LEFT JOIN users u ON p.username = u.username 
-        WHERE p.id > $1
-        ORDER BY p.created_at DESC
-      `, [afterId]);
-      return res.json(result.rows);
-    } else {
-      const result = await pool.query(`
-        SELECT p.*, u.is_verified 
-        FROM posts p 
-        LEFT JOIN users u ON p.username = u.username 
-        ORDER BY p.created_at DESC
-      `);
-      res.json(result.rows);
-    }
+    const result = await pool.query(`
+      SELECT p.*, u.is_verified, u.avatar_url 
+      FROM posts p 
+      LEFT JOIN users u ON p.username = u.username 
+      ORDER BY p.created_at DESC
+    `);
+    res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -273,7 +319,7 @@ app.get('/api/posts/user/:username', async (req, res) => {
   const { username } = req.params;
   try {
     const result = await pool.query(`
-      SELECT p.*, u.is_verified 
+      SELECT p.*, u.is_verified, u.avatar_url 
       FROM posts p 
       LEFT JOIN users u ON p.username = u.username 
       WHERE p.username = $1 
@@ -293,9 +339,10 @@ app.post('/api/posts', async (req, res) => {
       [username, content]
     );
     await pool.query('UPDATE users SET rating = rating + 1 WHERE username = $1', [username]);
-    const userCheck = await pool.query('SELECT is_verified FROM users WHERE username = $1', [username]);
+    const userCheck = await pool.query('SELECT is_verified, avatar_url FROM users WHERE username = $1', [username]);
     const savedPost = result.rows[0];
     savedPost.is_verified = userCheck.rows[0]?.is_verified || false;
+    savedPost.avatar_url = userCheck.rows[0]?.avatar_url || '';
     res.json(savedPost);
   } catch (err) {
     res.status(500).json({ error: "Ошибка публикации" });
@@ -396,7 +443,6 @@ app.post('/api/posts/:id/repost', async (req, res) => {
 app.delete('/api/posts/:id/repost', async (req, res) => {
   const postId = req.params.id;
   const { username } = req.body;
-  if (!username) return res.status(400).json({ error: 'Username is required' });
   try {
     const result = await pool.query('DELETE FROM reposts WHERE post_id = $1 AND username = $2', [postId, username]);
     if (result.rowCount > 0) {
@@ -414,7 +460,7 @@ app.get('/api/posts/reposts/:username', async (req, res) => {
   const { username } = req.params;
   try {
     const result = await pool.query(`
-      SELECT p.*, u.is_verified FROM posts p
+      SELECT p.*, u.is_verified, u.avatar_url FROM posts p
       INNER JOIN reposts r ON p.id = r.post_id 
       LEFT JOIN users u ON p.username = u.username
       WHERE r.username = $1 
@@ -432,17 +478,13 @@ app.post('/api/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const handle = username.toLowerCase();
     const result = await pool.query(
-      'INSERT INTO users (username, email, password, handle) VALUES ($1, $2, $3, $4) RETURNING id, username, handle',
+      'INSERT INTO users (username, email, password, handle) VALUES ($1, $2, $3, $4) RETURNING *',
       [username, email, hashedPassword, handle]
     );
     res.json(result.rows[0]);
   } catch (err) {
     if (err.code === '23505') {
-      if (err.constraint === 'users_handle_key') {
-        res.status(400).json({ error: "Такой никнейм (handle) уже занят" });
-      } else {
-        res.status(400).json({ error: "Ник или почта уже заняты" });
-      }
+      res.status(400).json({ error: "Ник или почта уже заняты" });
     } else {
       res.status(500).json({ error: "Ошибка базы данных: " + err.message });
     }
@@ -468,17 +510,13 @@ app.post('/api/messages', async (req, res) => {
     return res.status(400).json({ error: "Все поля обязательны" });
   }
   try {
-    const receiverExists = await pool.query('SELECT 1 FROM users WHERE username = $1', [receiver]);
-    if (receiverExists.rows.length === 0) {
-      return res.status(404).json({ error: "Получатель не найден" });
-    }
     const result = await pool.query(
       'INSERT INTO messages (sender, receiver, content, is_read) VALUES ($1, $2, $3, false) RETURNING *',
       [sender, receiver, content]
     );
     res.json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: "Ошибка отправки сообщения: " + err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -493,7 +531,7 @@ app.get('/api/messages/history', async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: "Ошибка получения истории: " + err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -509,7 +547,7 @@ app.get('/api/messages/chats', async (req, res) => {
          WHERE sender = $1 OR receiver = $1
          ORDER BY CASE WHEN sender = $1 THEN receiver ELSE sender END, created_at DESC
        )
-       SELECT lm.chat_user as username, lm.content as last_message, lm.created_at, u.handle, u.is_verified
+       SELECT lm.chat_user as username, lm.content as last_message, lm.created_at, u.handle, u.is_verified, u.avatar_url
        FROM last_messages lm
        LEFT JOIN users u ON u.username = lm.chat_user
        ORDER BY lm.created_at DESC`,
@@ -517,60 +555,15 @@ app.get('/api/messages/chats', async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: "Ошибка получения списка чатов: " + err.message });
-  }
-});
-
-app.get('/api/messages/unread-count', async (req, res) => {
-  const { username } = req.query;
-  try {
-    const result = await pool.query(
-      'SELECT COUNT(*) FROM messages WHERE receiver = $1 AND is_read = false',
-      [username]
-    );
-    res.json({ count: parseInt(result.rows[0].count) });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get('/api/messages/unread-chats', async (req, res) => {
-  const { username } = req.query;
-  try {
-    const result = await pool.query(
-      `SELECT 
-         CASE WHEN sender = $1 THEN receiver ELSE sender END as chat_user,
-         COUNT(*) as unread_count
-       FROM messages
-       WHERE receiver = $1 AND is_read = false
-       GROUP BY chat_user`,
-      [username]
-    );
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/messages/read', async (req, res) => {
-  const { username, chatUser } = req.body;
-  try {
-    await pool.query(
-      'UPDATE messages SET is_read = true WHERE receiver = $1 AND sender = $2 AND is_read = false',
-      [username, chatUser]
-    );
-    res.json({ success: true });
-  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 app.get('/api/notifications', async (req, res) => {
   const { username } = req.query;
-  if (!username) return res.status(400).json({ error: "Username required" });
   try {
     const result = await pool.query(
-      `SELECT n.*, u.is_verified as from_verified 
+      `SELECT n.*, u.is_verified as from_verified, u.avatar_url 
        FROM notifications n
        LEFT JOIN users u ON n.user_from = u.username
        WHERE n.user_to = $1 
@@ -584,27 +577,14 @@ app.get('/api/notifications', async (req, res) => {
 });
 
 app.post('/api/notifications/read', async (req, res) => {
-  const { notificationId, username } = req.body;
+  const { username } = req.body;
   try {
-    if (notificationId) {
-      await pool.query('UPDATE notifications SET is_read = true WHERE id = $1 AND user_to = $2', [notificationId, username]);
-    } else {
-      await pool.query('UPDATE notifications SET is_read = true WHERE user_to = $1', [username]);
-    }
+    await pool.query('UPDATE notifications SET is_read = true WHERE user_to = $1', [username]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.delete('/api/notifications', async (req, res) => {
-  const { username } = req.query;
-  try {
-    await pool.query('DELETE FROM notifications WHERE user_to = $1', [username]);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.listen(PORT, () => console.log(`CЕРВЕР ЗАПУЩЕН НА ПОРТУ ${PORT}`));
+// Запускаем сервер через HTTP-сервер (вместе с сокетами)
+server.listen(PORT, () => console.log(`🚀 СЕРВЕР С WEBOCKET ЗАПУЩЕН НА ПОРТУ ${PORT}`));

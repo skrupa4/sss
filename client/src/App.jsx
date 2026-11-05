@@ -1,54 +1,44 @@
-import React, { useState, useEffect } from 'react';
-import ProfilePage from "./pages/ProfilePage"; 
-import AuthPage from "./pages/AuthPage";
+import React, { useState, useEffect } from 'react'; // 1. Добавили useEffect
+import ProfilePage from "./components/ProfilePage"; 
+import AuthPage from "./components/AuthPage";
 
 function App() {
   const [user, setUser] = useState(null);
 
+  // 2. Эффект для автоматического входа при загрузке страницы
   useEffect(() => {
     const savedUser = localStorage.getItem('sss_user');
     if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        console.error("Ошибка парсинга пользователя", e);
-        localStorage.removeItem('sss_user');
-      }
+      // Если нашли строку в памяти, превращаем её обратно в объект и вставляем в стейт
+      setUser(JSON.parse(savedUser));
     }
   }, []);
 
   const handleLogin = (userData) => {
     const fullUser = {
       ...userData,
-      handle: userData.username ? userData.username.toLowerCase() : '',
-      followers: userData.followers || 0,
-      following: userData.following || 0,
-      achievements: userData.achievements || 0,
-      regDate: userData.created_at ? new Date(userData.created_at).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }) : "май 2026г."
+      handle: userData.username.toLowerCase(),
+      followers: 0,
+      following: 0,
+      achievements: 0,
+      regDate: "май 2026г."
     };
     
+    // 3. Сохраняем данные в localStorage в виде строки
     localStorage.setItem('sss_user', JSON.stringify(fullUser));
     setUser(fullUser);
   };
 
-  const handleUpdateUser = (updatedUserData) => {
-    const updatedUser = {
-      ...user,
-      ...updatedUserData
-    };
-    localStorage.setItem('sss_user', JSON.stringify(updatedUser));
-    setUser(updatedUser);
-  };
-
   const handleLogout = () => {
+    // 4. Очищаем память при выходе
     localStorage.removeItem('sss_user');
     setUser(null);
   };
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white font-sans">
+    <div className="min-h-screen bg-black text-white font-sans">
       {user ? (
-        <ProfilePage user={user} onLogout={handleLogout} onUpdateUser={handleUpdateUser} />
+        <ProfilePage user={user} onLogout={handleLogout} />
       ) : (
         <AuthPage onLogin={handleLogin} />
       )}

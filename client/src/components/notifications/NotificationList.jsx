@@ -1,5 +1,5 @@
 import React from 'react';
-import Avatar from '/common/Avatar';
+import Avatar from '../../common/Avatar';
 
 const NotificationList = ({ notifications, onMarkAllAsRead, onUserClick }) => {
   const getNotificationText = (notif) => {

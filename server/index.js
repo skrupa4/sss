@@ -17,10 +17,9 @@ const pool = isProduction
       ssl: { rejectUnauthorized: false }
     })
   : new Pool({
-      connectionString: "postgresql://sss_db_b924_user:j0ZD3wLvXGOFS9rsUmnhOZcW9PfDW681@dpg-d96nlbuq1p3s73d2vneg-a.oregon-postgres.render.com/sss_db_b924"
+      connectionString: "postgresql://sss_db_ctu7_user:YshkrYR2597IUXF3UKRKYzuYv8ka7QOX@dpg-dbmaplff3r2c73843rog-a/sss_db_ctu7"
     });
 
-// ========== ИНИЦИАЛИЗАЦИЯ БД ==========
 const initDB = async () => {
   try {
     await pool.query(`
@@ -114,8 +113,6 @@ const initDB = async () => {
   }
 };
 initDB();
-
-// ========== УВЕДОМЛЕНИЯ ==========
 async function createNotification(userTo, userFrom, type, postId = null, extraContent = null) {
   if (userTo === userFrom) return;
   try {
@@ -128,7 +125,6 @@ async function createNotification(userTo, userFrom, type, postId = null, extraCo
   }
 }
 
-// ========== ПРОФИЛЬ ==========
 app.get('/api/users/:username', async (req, res) => {
   const { username } = req.params;
   const viewer = req.query.viewer;
@@ -192,7 +188,6 @@ app.put('/api/users/:oldUsername', async (req, res) => {
   }
 });
 
-// ========== ПОДПИСКИ ==========
 app.post('/api/users/:username/follow', async (req, res) => {
   const targetUser = req.params.username;
   const { follower } = req.body;
@@ -248,7 +243,6 @@ app.delete('/api/users/:username/follow', async (req, res) => {
   }
 });
 
-// ========== ПОСТЫ ==========
 app.get('/api/posts', async (req, res) => {
   const afterId = req.query.after_id ? parseInt(req.query.after_id) : 0;
   try {
@@ -325,7 +319,6 @@ app.delete('/api/posts/:id', async (req, res) => {
   }
 });
 
-// ========== ЛАЙКИ ==========
 app.post('/api/posts/:id/like', async (req, res) => {
   const { id } = req.params;
   const { username } = req.body;
@@ -350,7 +343,6 @@ app.post('/api/posts/:id/like', async (req, res) => {
   }
 });
 
-// ========== КОММЕНТАРИИ ==========
 app.get('/api/posts/:id/comments', async (req, res) => {
   const { id } = req.params;
   try {
@@ -381,7 +373,6 @@ app.post('/api/posts/:id/comments', async (req, res) => {
   }
 });
 
-// ========== РЕПОСТЫ ==========
 app.post('/api/posts/:id/repost', async (req, res) => {
   const { id } = req.params;
   const { username } = req.body;
@@ -435,7 +426,6 @@ app.get('/api/posts/reposts/:username', async (req, res) => {
   }
 });
 
-// ========== АВТОРИЗАЦИЯ ==========
 app.post('/api/register', async (req, res) => {
   const { username, email, password } = req.body;
   try {
@@ -472,7 +462,6 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// ========== ЛИЧНЫЕ СООБЩЕНИЯ ==========
 app.post('/api/messages', async (req, res) => {
   const { sender, receiver, content } = req.body;
   if (!sender || !receiver || !content?.trim()) {
@@ -576,7 +565,6 @@ app.post('/api/messages/read', async (req, res) => {
   }
 });
 
-// ========== УВЕДОМЛЕНИЯ ==========
 app.get('/api/notifications', async (req, res) => {
   const { username } = req.query;
   if (!username) return res.status(400).json({ error: "Username required" });
@@ -619,5 +607,4 @@ app.delete('/api/notifications', async (req, res) => {
   }
 });
 
-// ========== ЗАПУСК ==========
-app.listen(PORT, () => console.log(`🔥 СЕРВЕР ЗАПУЩЕН НА ПОРТУ ${PORT}`));
+app.listen(PORT, () => console.log(`CЕРВЕР ЗАПУЩЕН НА ПОРТУ ${PORT}`));

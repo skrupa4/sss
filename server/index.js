@@ -16,9 +16,6 @@ const pool = isProduction
       connectionString: process.env.DATABASE_URL,
       ssl: { rejectUnauthorized: false }
     })
-  : new Pool({
-      connectionString: "postgresql://sss_db_ctu7_user:YshkrYR2597IUXF3UKRKYzuYv8ka7QOX@dpg-dbmaplff3r2c73843rog-a.oregon-postgres.render.com/sss_db_ctu7"
-    });
 
 const initDB = async () => {
   try {

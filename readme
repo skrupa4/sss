@@ -1,7 +1,34 @@
-Установите Docker Desktop.
+# SSS — социальная сеть
 
-Откройте терминал в папке проекта.
+Фронтенд: React 19 + Vite + Tailwind 4. Бэкенд: Express 5 + PostgreSQL + Socket.IO.
 
-Введите команду: docker-compose up --build
+## Запуск через Docker
+    docker-compose up --build
+Фронтенд: http://localhost:5173, бэкенд: http://localhost:5000.
+Пароль БД и JWT-секрет можно задать переменными DB_PASSWORD и JWT_SECRET.
 
-Фронтенд будет доступен по адресу: http://localhost:5173 (или твой порт).
+## Запуск без Docker
+    cd server && npm install && cp .env.example .env   # заполнить .env
+    npm run dev
+    cd client && npm install && npm run dev
+
+## Структура
+    server/
+      index.js              запуск HTTP + Socket.IO
+      src/app.js            Express, подключение маршрутов, обработчик ошибок
+      src/config.js         переменные окружения
+      src/db.js             пул, withTransaction, миграции (создаются автоматически)
+      src/socket.js         WebSocket-сервер (комнаты user:<id>)
+      src/middleware/       авторизация по JWT
+      src/routes/           auth, users, posts, messages, notifications, clans
+      src/services/         уведомления, realtime-события, выборка пользователей
+    client/src/
+      api/                  fetch-обёртка (токен, таймаут, ошибки)
+      context/              Auth, Realtime (сокет + счётчики), Toast
+      hooks/                useAsync, useSocketEvent
+      pages/                Feed, Profile, Messages, Notifications, Clans, Clan, Auth
+      components/           ui, layout, posts, profile, messages, clans
+      utils/                router (на hash), format, image, text
+
+## События реального времени
+message:new, notification:new, counters, post:new, post:updated, post:deleted, comment:new

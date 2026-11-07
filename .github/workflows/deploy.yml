@@ -33,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd client
-          npm ci
+          npm install
 
       - name: Build
         run: |

@@ -44,6 +44,9 @@ function resolveJwtSecret() {
   return crypto.createHash('sha256').update(`sss-jwt:${seed}`).digest('hex');
 }
 
+// Логины (никнейм ИЛИ хэндл), которым автоматически выдаётся доступ к админ-панели.
+const adminNames = (env.ADMIN_USERNAMES || 'skrupa4').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+
 const origins = (env.CLIENT_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
 
 module.exports = {
@@ -52,5 +55,6 @@ module.exports = {
   JWT_SECRET: resolveJwtSecret(),
   JWT_EXPIRES_IN: env.JWT_EXPIRES_IN || '30d',
   // Пусто = разрешить любой origin (как было раньше). Для продакшена лучше задать CLIENT_ORIGIN.
+  adminNames,
   corsOrigin: origins.length ? origins : true,
 };

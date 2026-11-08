@@ -5,12 +5,14 @@ const { createNotification } = require('../services/notifications');
 const { broadcast } = require('../services/realtime');
 const { HttpError } = require('../utils/errors');
 const { validateText } = require('../utils/validate');
+const { nickColumns } = require('../services/users');
+const { checkByUsername } = require('../services/achievements');
 
 const router = express.Router();
 
 // $1 всегда = имя смотрящего (для флагов «я лайкнул / репостнул»).
 const POST_SELECT = `
-  SELECT p.*, u.is_verified, u.avatar_version, c.tag AS clan_tag,
+  SELECT p.*, u.is_verified, u.avatar_version, ${nickColumns('u')}, c.tag AS clan_tag,
     EXISTS (SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.username = $1) AS liked_by_me,
     EXISTS (SELECT 1 FROM reposts rp WHERE rp.post_id = p.id AND rp.username = $1) AS reposted_by_me
   FROM posts p
@@ -30,9 +32,13 @@ function counters(post) {
 }
 
 // ---------- Списки (статические маршруты раньше /:id) ----------
+// ?filter=following — только посты тех, на кого я подписан, и мои.
 router.get('/', optionalAuth, async (req, res) => {
+  const onlyFollowing = req.query.filter === 'following' && req.user;
   const { rows } = await pool.query(
-    `${POST_SELECT} ORDER BY p.created_at DESC, p.id DESC LIMIT 100`,
+    `${POST_SELECT}
+     ${onlyFollowing ? 'WHERE p.username = $1 OR p.username IN (SELECT following_username FROM follows WHERE follower_username = $1)' : ''}
+     ORDER BY p.created_at DESC, p.id DESC LIMIT 100`,
     [viewerOf(req)]
   );
   res.json(rows);
@@ -64,10 +70,10 @@ router.post('/', requireAuth, async (req, res) => {
     req.user.username,
     content,
   ]);
-  await pool.query('UPDATE users SET rating = rating + 1 WHERE username = $1', [req.user.username]);
 
   const post = await getPost(pool, inserted.rows[0].id, req.user.username);
   broadcast('post:new', { ...post, liked_by_me: false, reposted_by_me: false });
+  checkByUsername(req.user.username);
   res.json(post);
 });
 
@@ -75,9 +81,6 @@ router.delete('/:id', requireAuth, async (req, res) => {
   const id = Number(req.params.id);
   const removed = await withTransaction(async (db) => {
     const result = await db.query('DELETE FROM posts WHERE id = $1 AND username = $2 RETURNING id', [id, req.user.username]);
-    if (result.rows.length) {
-      await db.query('UPDATE users SET rating = GREATEST(0, rating - 1) WHERE username = $1', [req.user.username]);
-    }
     return result.rows.length > 0;
   });
   if (!removed) throw new HttpError(404, 'Пост не найден или он не ваш');
@@ -108,7 +111,11 @@ router.post('/:id/like', requireAuth, async (req, res) => {
     return { post: updated.rows[0], liked: isLiked };
   });
 
-  if (liked) await createNotification(post.username, username, 'like', id);
+  if (liked) {
+    await createNotification(post.username, username, 'like', id);
+    checkByUsername(username);
+    checkByUsername(post.username);
+  }
   broadcast('post:updated', counters(post));
   res.json({ ...counters(post), liked_by_me: liked });
 });
@@ -131,6 +138,7 @@ router.post('/:id/repost', requireAuth, async (req, res) => {
   });
 
   await createNotification(post.username, username, 'repost', id);
+  checkByUsername(username);
   broadcast('post:updated', counters(post));
   res.json({ ...counters(post), reposted_by_me: true });
 });
@@ -150,7 +158,7 @@ router.delete('/:id/repost', requireAuth, async (req, res) => {
 // ---------- Комментарии ----------
 router.get('/:id/comments', async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT cmt.*, u.avatar_version, u.is_verified
+    `SELECT cmt.*, u.avatar_version, u.is_verified, ${nickColumns('u')}
      FROM comments cmt LEFT JOIN users u ON u.username = cmt.username
      WHERE cmt.post_id = $1 ORDER BY cmt.created_at ASC, cmt.id ASC`,
     [Number(req.params.id)]
@@ -174,10 +182,11 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
     return { comment: inserted.rows[0], post: (await db.query('SELECT * FROM posts WHERE id = $1', [id])).rows[0] };
   });
 
-  const me = await pool.query('SELECT avatar_version, is_verified FROM users WHERE id = $1', [req.user.id]);
+  const me = await pool.query(`SELECT u.avatar_version, u.is_verified, ${nickColumns('u')} FROM users u WHERE u.id = $1`, [req.user.id]);
   const fullComment = { ...comment, ...me.rows[0] };
 
   await createNotification(post.username, req.user.username, 'comment', id, content.substring(0, 100));
+  checkByUsername(req.user.username);
   broadcast('post:updated', counters(post));
   broadcast('comment:new', { post_id: id, comment: fullComment });
   res.json(fullComment);

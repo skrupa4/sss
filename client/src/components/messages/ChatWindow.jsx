@@ -8,6 +8,7 @@ import { formatTime } from '../../utils/format';
 import { navigate, profilePath } from '../../utils/router';
 import Avatar from '../ui/Avatar';
 import { VerifiedBadge } from '../ui/Badges';
+import Nick from '../ui/Nick';
 import Icon from '../ui/Icons';
 import { Spinner } from '../ui/Spinner';
 
@@ -75,7 +76,7 @@ export default function ChatWindow({ peer, onRead }) {
         <a href={`#${profilePath(peer)}`} className="flex min-w-0 items-center gap-3">
           <Avatar username={peer} version={peerInfo?.avatar_version} size={36} />
           <span className="flex items-center gap-1.5 truncate text-[15px] font-semibold">
-            {peer}
+            <Nick name={peer} color={peerInfo?.nick_color} premium={peerInfo?.is_premium} />
             {peerInfo?.is_verified && <VerifiedBadge className="h-3.5 w-3.5" />}
           </span>
         </a>

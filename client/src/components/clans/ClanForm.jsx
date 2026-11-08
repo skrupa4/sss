@@ -20,7 +20,7 @@ export default function ClanForm({ initial, submitLabel, onSubmit, onCancel }) {
   };
 
   return (
-    <form onSubmit={submit} className="space-y-4 rounded-2xl border border-line bg-surface p-5">
+    <form onSubmit={submit} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-[1fr_110px]">
         <label className="block text-sm">
           <span className="mb-1.5 block text-muted">Название</span>

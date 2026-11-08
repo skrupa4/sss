@@ -1,6 +1,7 @@
 import { formatTime } from '../../utils/format';
 import Avatar from '../ui/Avatar';
 import { VerifiedBadge } from '../ui/Badges';
+import Nick from '../ui/Nick';
 import { messagesPath, navigate } from '../../utils/router';
 
 export default function ChatList({ chats, loading, activeUsername }) {
@@ -25,7 +26,7 @@ export default function ChatList({ chats, loading, activeUsername }) {
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline justify-between gap-2">
               <span className="flex min-w-0 items-center gap-1.5">
-                <span className="truncate text-sm font-semibold">{chat.username}</span>
+                <span className="truncate text-sm font-semibold"><Nick name={chat.username} color={chat.nick_color} premium={chat.is_premium} /></span>
                 {chat.is_verified && <VerifiedBadge className="h-3.5 w-3.5" />}
               </span>
               <span className="shrink-0 text-xs text-faint">{formatTime(chat.created_at)}</span>

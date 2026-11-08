@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { api } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
 import { useSocketEvent } from '../hooks/useSocketEvent';
-import { notificationText, useRealtime } from '../context/RealtimeContext';
+import { isSystemNotification, notificationText, useRealtime } from '../context/RealtimeContext';
 import { timeAgo } from '../utils/format';
 import { profilePath } from '../utils/router';
 import Avatar from '../components/ui/Avatar';
@@ -55,12 +55,24 @@ export default function NotificationsPage() {
           {items.map((n) => (
             <li key={n.id}>
               <a
-                href={`#${profilePath(n.user_from)}`}
+                href={isSystemNotification(n) ? '#/notifications' : `#${profilePath(n.user_from)}`}
                 className={`flex items-start gap-3 p-4 transition-colors hover:bg-white/[0.03] ${n.is_read ? 'opacity-70' : 'bg-white/[0.03]'}`}
               >
-                <Avatar username={n.user_from} version={n.from_avatar_version} size={40} />
+                {isSystemNotification(n) ? (
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400/25 to-accent/25 text-xl">
+                    {n.type === 'achievement' ? '🏆' : '📢'}
+                  </span>
+                ) : (
+                  <Avatar username={n.user_from} version={n.from_avatar_version} size={40} />
+                )}
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-ink/90"><b className="font-semibold">@{n.user_from}</b> {notificationText(n)}</p>
+                  <p className="text-sm text-ink/90">
+                    {isSystemNotification(n) ? (
+                      notificationText(n)
+                    ) : (
+                      <><b className="font-semibold">@{n.user_from}</b> {notificationText(n)}</>
+                    )}
+                  </p>
                   <p className="mt-0.5 text-xs text-muted">{timeAgo(n.created_at)}</p>
                 </div>
                 {!n.is_read && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-accent" aria-label="Не прочитано" />}

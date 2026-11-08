@@ -4,6 +4,8 @@ const { requireAuth } = require('../middleware/auth');
 const { emitToUsername, pushCounters } = require('../services/realtime');
 const { HttpError } = require('../utils/errors');
 const { validateText } = require('../utils/validate');
+const { nickColumns } = require('../services/users');
+const { checkAchievements } = require('../services/achievements');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -27,6 +29,7 @@ router.post('/', async (req, res) => {
   await emitToUsername(receiver, 'message:new', message);
   await emitToUsername(sender, 'message:new', message);
   await pushCounters(receiver);
+  checkAchievements(req.user.id);
   res.json(message);
 });
 
@@ -54,7 +57,7 @@ router.get('/chats', async (req, res) => {
        ORDER BY CASE WHEN sender = $1 THEN receiver ELSE sender END, created_at DESC, id DESC
      )
      SELECT lm.chat_user AS username, lm.content AS last_message, lm.created_at,
-            u.handle, u.is_verified, u.avatar_version,
+            u.handle, u.is_verified, u.avatar_version, ${nickColumns('u')},
             (SELECT COUNT(*)::int FROM messages m
                WHERE m.receiver = $1 AND m.sender = lm.chat_user AND m.is_read = false) AS unread
      FROM last_messages lm

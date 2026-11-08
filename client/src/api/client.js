@@ -61,10 +61,21 @@ async function request(method, path, body) {
   }
 }
 
+// Забирает бинарный ответ (картинку) с авторизацией и отдаёт временный адрес для <img>.
+export async function fetchBlobUrl(path) {
+  const token = tokenStore.get();
+  const res = await fetch(`${API_BASE}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!res.ok) throw new ApiError('Не удалось загрузить картинку', res.status);
+  return URL.createObjectURL(await res.blob());
+}
+
+export const clanAvatarUrl = (id, version) => (version > 0 ? `${API_BASE}/api/clans/${id}/avatar?v=${version}` : null);
+
 export const api = {
   get: (path) => request('GET', path),
   post: (path, body = {}) => request('POST', path, body),
   put: (path, body = {}) => request('PUT', path, body),
+  patch: (path, body = {}) => request('PATCH', path, body),
   del: (path) => request('DELETE', path),
 };
 

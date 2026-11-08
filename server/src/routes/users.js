@@ -4,6 +4,8 @@ const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { fetchUser } = require('../services/users');
 const { createNotification } = require('../services/notifications');
 const { HttpError } = require('../utils/errors');
+const { isReservedName } = require('../utils/reserved');
+const { getAchievements, checkAchievements } = require('../services/achievements');
 const { validateUsername, validateHandle, validateBio } = require('../utils/validate');
 
 const router = express.Router();
@@ -31,6 +33,9 @@ router.put('/me', requireAuth, async (req, res) => {
   const handle = validateHandle(req.body.handle);
   const bio = validateBio(req.body.bio);
   const userId = req.user.id;
+  if (!req.user.is_admin && (isReservedName(username) || isReservedName(handle))) {
+    throw new HttpError(400, 'Это имя зарезервировано');
+  }
 
   try {
     await withTransaction(async (db) => {
@@ -60,7 +65,14 @@ router.put('/me', requireAuth, async (req, res) => {
     throw err;
   }
 
+  await checkAchievements(userId);
   res.json(await fetchUser(pool, 'id', userId, { withEmail: true }));
+});
+
+// На кого я подписан (нужно ленте подписок для «живых» обновлений).
+router.get('/me/following', requireAuth, async (req, res) => {
+  const { rows } = await pool.query('SELECT following_username FROM follows WHERE follower_username = $1', [req.user.username]);
+  res.json(rows.map((r) => r.following_username));
 });
 
 router.post('/me/avatar', requireAuth, async (req, res) => {
@@ -74,6 +86,7 @@ router.post('/me/avatar', requireAuth, async (req, res) => {
     'UPDATE users SET avatar = $1, avatar_type = $2, avatar_version = COALESCE(avatar_version, 0) + 1 WHERE id = $3',
     [buffer, match[1], req.user.id]
   );
+  await checkAchievements(req.user.id);
   res.json(await fetchUser(pool, 'id', req.user.id, { withEmail: true }));
 });
 
@@ -93,6 +106,13 @@ router.get('/:username/avatar', async (req, res) => {
   // Адрес содержит ?v=<версия>, поэтому кешировать можно «навсегда».
   res.set('Cache-Control', 'public, max-age=31536000, immutable');
   res.send(rows[0].avatar);
+});
+
+router.get('/:username/achievements', async (req, res) => {
+  const { rows } = await pool.query('SELECT id FROM users WHERE username = $1', [req.params.username]);
+  if (!rows.length) throw new HttpError(404, 'Юзер не найден');
+  const data = await getAchievements(rows[0].id);
+  res.json({ unlocked: data.unlocked, total: data.total, items: data.items });
 });
 
 router.get('/:username', optionalAuth, async (req, res) => {
@@ -130,7 +150,12 @@ router.post('/:username/follow', requireAuth, async (req, res) => {
     return true;
   });
 
-  if (created) await createNotification(target, follower, 'follow');
+  if (created) {
+    await createNotification(target, follower, 'follow');
+    await checkAchievements(req.user.id);
+    const t = await pool.query('SELECT id FROM users WHERE username = $1', [target]);
+    if (t.rows[0]) await checkAchievements(t.rows[0].id);
+  }
   res.json({ success: true });
 });
 

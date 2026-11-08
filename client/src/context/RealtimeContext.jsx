@@ -14,7 +14,11 @@ const NOTIFICATION_TEXT = {
   comment: (n) => `прокомментировал: «${(n.content || '').slice(0, 60)}»`,
   repost: () => 'сделал репост вашего поста',
   clan_join: (n) => `вступил в ваш клан «${n.content || ''}»`,
+  // Системные уведомления приходят не от пользователя, поэтому без «@имя».
+  achievement: (n) => `Новое достижение: ${n.content}`,
+  announcement: (n) => n.content,
 };
+export const isSystemNotification = (n) => n.type === 'achievement' || n.type === 'announcement';
 export const notificationText = (n) => (NOTIFICATION_TEXT[n.type] || (() => 'новое уведомление'))(n);
 
 /**
@@ -75,13 +79,28 @@ export function RealtimeProvider({ children }) {
         onClick: () => navigate(messagesPath(m.sender)),
       });
     };
+    const onAchievement = (a) => push({
+      type: 'achievement',
+      emoji: a.icon,
+      title: 'Новое достижение!',
+      body: `${a.title} — ${a.description}`,
+      onClick: () => navigate(profilePath(user.username)),
+    });
+    const onAnnouncement = (a) => {
+      refreshCounters();
+      push({ type: 'info', emoji: '📢', title: 'Объявление', body: a.content, onClick: () => navigate('/notifications') });
+    };
     socket.on('notification:new', onNotification);
     socket.on('message:new', onMessage);
+    socket.on('achievement:unlocked', onAchievement);
+    socket.on('announcement', onAnnouncement);
     return () => {
       socket.off('notification:new', onNotification);
       socket.off('message:new', onMessage);
+      socket.off('achievement:unlocked', onAchievement);
+      socket.off('announcement', onAnnouncement);
     };
-  }, [socket, push, user?.username]);
+  }, [socket, push, user?.username, refreshCounters]);
 
   const value = useMemo(() => ({ socket, counters, connected, openChatRef, refreshCounters }), [socket, counters, connected, refreshCounters]);
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;

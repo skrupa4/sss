@@ -11,4 +11,11 @@ initDB().finally(() => {
   server.listen(config.PORT, () => console.log(`СЕРВЕР ЗАПУЩЕН НА ПОРТУ ${config.PORT}`));
 });
 
+// Раз в час удаляем сторис, истёкшие больше суток назад.
+setInterval(() => {
+  require('./src/db').pool
+    .query("DELETE FROM stories WHERE expires_at < NOW() - INTERVAL '1 day'")
+    .catch((err) => console.error('Очистка сторис:', err.message));
+}, 60 * 60 * 1000).unref();
+
 process.on('unhandledRejection', (err) => console.error('Необработанная ошибка:', err));

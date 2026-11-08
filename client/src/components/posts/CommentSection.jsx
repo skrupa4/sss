@@ -6,6 +6,7 @@ import { profilePath } from '../../utils/router';
 import { timeAgo } from '../../utils/format';
 import Avatar from '../ui/Avatar';
 import { VerifiedBadge } from '../ui/Badges';
+import Nick from '../ui/Nick';
 import EmojiPicker from '../ui/EmojiPicker';
 import { insertAtCursor } from '../../utils/text';
 import { Spinner } from '../ui/Spinner';
@@ -54,7 +55,7 @@ export default function CommentSection({ postId }) {
             <Avatar username={c.username} version={c.avatar_version} size={28} rounded="rounded-lg" />
             <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md bg-raised px-3 py-2">
               <div className="flex items-center gap-1.5">
-                <a href={`#${profilePath(c.username)}`} className="text-[13px] font-semibold hover:text-accent">{c.username}</a>
+                <a href={`#${profilePath(c.username)}`} className="text-[13px] font-semibold hover:opacity-80"><Nick name={c.username} color={c.nick_color} premium={c.is_premium} /></a>
                 {c.is_verified && <VerifiedBadge className="h-3.5 w-3.5" />}
                 <span className="text-xs text-faint">{timeAgo(c.created_at)}</span>
               </div>

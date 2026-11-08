@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import Logo from '../components/ui/Logo';
 
 export default function AuthPage() {
   const { login, register } = useAuth();
@@ -27,7 +28,7 @@ export default function AuthPage() {
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="brand-text text-6xl font-black italic tracking-tighter">SSS</h1>
+          <h1 className="flex justify-center"><Logo size="lg" /></h1>
           <p className="mt-2 text-sm text-muted">{isLogin ? 'С возвращением! Войдите в аккаунт.' : 'Создайте аккаунт за минуту.'}</p>
         </div>
 

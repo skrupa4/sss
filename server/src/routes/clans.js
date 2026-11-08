@@ -4,6 +4,8 @@ const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { createNotification } = require('../services/notifications');
 const { HttpError } = require('../utils/errors');
 const { str } = require('../utils/validate');
+const { nickColumns } = require('../services/users');
+const { checkAchievements, checkByUsername } = require('../services/achievements');
 
 const router = express.Router();
 
@@ -20,7 +22,7 @@ function parseClanInput(body) {
 }
 
 const CLAN_SELECT = `
-  SELECT c.id, c.name, c.tag, c.description, c.created_at, c.owner_id,
+  SELECT c.id, c.name, c.tag, c.description, c.created_at, c.owner_id, c.avatar_version,
          ou.username AS owner_username,
          (SELECT COUNT(*)::int FROM clan_members m WHERE m.clan_id = c.id) AS members_count
   FROM clans c LEFT JOIN users ou ON ou.id = c.owner_id`;
@@ -47,6 +49,44 @@ router.get('/', async (req, res) => {
   res.json(rows);
 });
 
+// ---------- Аватарка клана ----------
+const AVATAR_RE = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/;
+const MAX_AVATAR_BYTES = 400 * 1024;
+
+router.get('/:id/avatar', async (req, res) => {
+  const { rows } = await pool.query('SELECT avatar, avatar_type FROM clans WHERE id = $1', [Number(req.params.id)]);
+  if (!rows.length || !rows[0].avatar) return res.status(404).end();
+  res.set('Content-Type', rows[0].avatar_type || 'image/jpeg');
+  res.set('Cache-Control', 'public, max-age=31536000, immutable'); // адрес содержит ?v=<версия>
+  res.send(rows[0].avatar);
+});
+
+async function ownedClan(req) {
+  const clan = await getClan(pool, Number(req.params.id));
+  if (!clan) throw new HttpError(404, 'Клан не найден');
+  if (clan.owner_id !== req.user.id && !req.user.is_admin) throw new HttpError(403, 'Менять аватарку клана может только владелец');
+  return clan;
+}
+
+router.post('/:id/avatar', requireAuth, async (req, res) => {
+  const clan = await ownedClan(req);
+  const match = AVATAR_RE.exec(typeof req.body.image === 'string' ? req.body.image : '');
+  if (!match) throw new HttpError(400, 'Нужна картинка PNG, JPEG или WebP');
+  const buffer = Buffer.from(match[2], 'base64');
+  if (!buffer.length || buffer.length > MAX_AVATAR_BYTES) throw new HttpError(400, 'Картинка слишком большая (максимум 400 КБ)');
+  await pool.query(
+    'UPDATE clans SET avatar = $1, avatar_type = $2, avatar_version = COALESCE(avatar_version, 0) + 1 WHERE id = $3',
+    [buffer, match[1], clan.id]
+  );
+  res.json(await getClan(pool, clan.id));
+});
+
+router.delete('/:id/avatar', requireAuth, async (req, res) => {
+  const clan = await ownedClan(req);
+  await pool.query('UPDATE clans SET avatar = NULL, avatar_type = NULL, avatar_version = 0 WHERE id = $1', [clan.id]);
+  res.json(await getClan(pool, clan.id));
+});
+
 // ---------- Клан по id (с участниками) ----------
 router.get('/:id', optionalAuth, async (req, res) => {
   const id = Number(req.params.id);
@@ -55,7 +95,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
   if (!clan) throw new HttpError(404, 'Клан не найден');
 
   const members = await pool.query(
-    `SELECT u.id, u.username, u.handle, u.is_verified, u.avatar_version, u.rating, m.role, m.joined_at
+    `SELECT u.id, u.username, u.handle, u.is_verified, u.avatar_version, ${nickColumns('u')}, m.role, m.joined_at
      FROM clan_members m JOIN users u ON u.id = m.user_id
      WHERE m.clan_id = $1
      ORDER BY CASE m.role WHEN 'owner' THEN 0 ELSE 1 END, m.joined_at ASC`,
@@ -82,6 +122,7 @@ router.post('/', requireAuth, async (req, res) => {
       await db.query("INSERT INTO clan_members (clan_id, user_id, role) VALUES ($1, $2, 'owner')", [rows[0].id, req.user.id]);
       return rows[0].id;
     });
+    await checkAchievements(req.user.id);
     res.json(await getClan(pool, clanId));
   } catch (err) {
     if (err.code === '23505') {
@@ -120,6 +161,8 @@ router.post('/:id/join', requireAuth, async (req, res) => {
     return found;
   });
   if (clan.owner_username) await createNotification(clan.owner_username, req.user.username, 'clan_join', null, clan.name);
+  await checkAchievements(req.user.id);
+  await checkByUsername(clan.owner_username);
   res.json(await getClan(pool, id));
 });
 

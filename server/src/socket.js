@@ -9,7 +9,7 @@ function initSocket(httpServer, corsOrigin) {
 
   io.use(async (socket, next) => {
     const user = await userFromToken(socket.handshake.auth?.token);
-    if (!user) return next(new Error('unauthorized'));
+    if (!user || user.is_banned) return next(new Error('unauthorized'));
     socket.data.user = user;
     next();
   });

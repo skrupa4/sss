@@ -1,4 +1,5 @@
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { DialogProvider } from './context/DialogContext';
 import { RealtimeProvider } from './context/RealtimeContext';
 import { ToastProvider } from './context/ToastContext';
 import { useRoute } from './utils/router';
@@ -11,6 +12,8 @@ import FeedPage from './pages/FeedPage';
 import MessagesPage from './pages/MessagesPage';
 import NotificationsPage from './pages/NotificationsPage';
 import ProfilePage from './pages/ProfilePage';
+import PremiumPage from './pages/PremiumPage';
+import AdminPage from './pages/AdminPage';
 
 function Pages() {
   const { user } = useAuth();
@@ -20,6 +23,9 @@ function Pages() {
     case 'profile': return <ProfilePage key={param || user.username} username={param || user.username} />;
     case 'messages': return <MessagesPage peer={param} />;
     case 'notifications': return <NotificationsPage />;
+    case 'following': return <FeedPage mode="following" />;
+    case 'premium': return <PremiumPage />;
+    case 'admin': return <AdminPage />;
     case 'clans': return param ? <ClanPage key={param} id={param} /> : <ClansPage />;
     default: return <FeedPage />;
   }
@@ -41,9 +47,11 @@ function Gate() {
 export default function App() {
   return (
     <ToastProvider>
-      <AuthProvider>
-        <Gate />
-      </AuthProvider>
+      <DialogProvider>
+        <AuthProvider>
+          <Gate />
+        </AuthProvider>
+      </DialogProvider>
     </ToastProvider>
   );
 }

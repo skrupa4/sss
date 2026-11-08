@@ -35,24 +35,18 @@ button:disabled { cursor: not-allowed; }
   outline-offset: 2px;
 }
 
-.brand-text {
-  background: linear-gradient(110deg, #ffffff 0%, var(--color-accent) 55%, var(--color-accent-2) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.premium-nick {
-  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-2), var(--color-accent));
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: flow 4s linear infinite;
-}
-
 @keyframes flow { to { background-position: 200% center; } }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes modal-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modal-backdrop-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes modal-in { from { opacity: 0; transform: translateY(14px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes modal-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(10px) scale(0.97); } }
+@keyframes sheet-in { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes sheet-out { from { transform: none; } to { transform: translateY(100%); } }
+@keyframes toast-out { to { opacity: 0; transform: translateY(8px) scale(0.97); } }
+@keyframes toast-progress { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@keyframes story-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes shine { to { background-position: 200% center; } }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes pop-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
 
@@ -62,7 +56,31 @@ button:disabled { cursor: not-allowed; }
   border-top-color: var(--color-accent);
   animation: spin 0.8s linear infinite;
 }
-.toast-in { animation: toast-in 0.25s ease-out; }
+.toast-in { animation: toast-in 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+.toast-out { animation: toast-out 0.25s ease-in forwards; }
+.toast-bar { transform-origin: left; animation: toast-progress 5s linear forwards; }
+
+/* Модальные окна: на телефоне — шторка снизу, на ПК — карточка по центру */
+.modal-backdrop[data-state='open'] { animation: modal-backdrop-in 0.22s ease-out forwards; }
+.modal-backdrop[data-state='closed'] { animation: modal-backdrop-out 0.2s ease-in forwards; }
+.modal-panel[data-state='open'] { animation: sheet-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.modal-panel[data-state='closed'] { animation: sheet-out 0.22s cubic-bezier(0.4, 0, 1, 1) forwards; }
+@media (min-width: 768px) {
+  .modal-panel[data-state='open'] { animation: modal-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+  .modal-panel[data-state='closed'] { animation: modal-out 0.2s ease-in forwards; }
+}
+
+/* Логотип: плитка с градиентом и белая надпись — ничего не обрезается */
+.logo-tile {
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-2));
+  box-shadow: 0 6px 20px -6px rgba(255, 42, 95, 0.6);
+}
+
+/* Переливающийся ник (цвет задаётся инлайном) */
+.nick-shine { display: inline-block; max-width: 100%; vertical-align: bottom; padding-bottom: 0.08em; }
+
+.hide-scrollbar { scrollbar-width: none; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
 .pop-in { animation: pop-in 0.15s ease-out; }
 
 .input {

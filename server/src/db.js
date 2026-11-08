@@ -131,6 +131,51 @@ const MIGRATIONS = [
      UNIQUE (user_id)
    )`,
 
+  // Premium, цвет ника, админ и бан.
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_until TIMESTAMPTZ`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_trial_used BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS nick_color TEXT`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN NOT NULL DEFAULT false`,
+
+  // Аватарки кланов.
+  `ALTER TABLE clans ADD COLUMN IF NOT EXISTS avatar BYTEA`,
+  `ALTER TABLE clans ADD COLUMN IF NOT EXISTS avatar_type TEXT`,
+  `ALTER TABLE clans ADD COLUMN IF NOT EXISTS avatar_version INTEGER DEFAULT 0`,
+
+  // Сторис (вертикальные картинки на 24 часа) и просмотры.
+  `CREATE TABLE IF NOT EXISTS stories (
+     id SERIAL PRIMARY KEY,
+     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     image BYTEA NOT NULL,
+     image_type TEXT NOT NULL,
+     caption TEXT DEFAULT '',
+     created_at TIMESTAMPTZ DEFAULT NOW(),
+     expires_at TIMESTAMPTZ NOT NULL
+   )`,
+  `CREATE TABLE IF NOT EXISTS story_views (
+     story_id INTEGER NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     viewed_at TIMESTAMPTZ DEFAULT NOW(),
+     PRIMARY KEY (story_id, user_id)
+   )`,
+
+  // Полученные достижения и настройки сайта (key/value).
+  `CREATE TABLE IF NOT EXISTS user_achievements (
+     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     code TEXT NOT NULL,
+     unlocked_at TIMESTAMPTZ DEFAULT NOW(),
+     PRIMARY KEY (user_id, code)
+   )`,
+  `CREATE TABLE IF NOT EXISTS app_settings (
+     key TEXT PRIMARY KEY,
+     value TEXT NOT NULL
+   )`,
+  `INSERT INTO app_settings (key, value) VALUES ('premium_trial_enabled', 'true') ON CONFLICT DO NOTHING`,
+  `INSERT INTO app_settings (key, value) VALUES ('premium_trial_days', '30') ON CONFLICT DO NOTHING`,
+
+  `CREATE INDEX IF NOT EXISTS stories_user_idx ON stories (user_id, expires_at)`,
+
   // Индексы. Уникальные на лайках/репостах могут не создаться, если в старых данных есть дубли — не критично.
   `CREATE INDEX IF NOT EXISTS messages_receiver_idx ON messages (receiver, is_read)`,
   `CREATE INDEX IF NOT EXISTS messages_sender_idx ON messages (sender)`,
@@ -140,6 +185,20 @@ const MIGRATIONS = [
   `CREATE UNIQUE INDEX IF NOT EXISTS reposts_unique ON reposts (post_id, username)`,
 ];
 
+// Выдаёт доступ к админ-панели пользователям из ADMIN_USERNAMES (по нику или хэндлу).
+async function ensureAdmins() {
+  try {
+    const { rowCount } = await pool.query(
+      `UPDATE users SET is_admin = true
+       WHERE is_admin = false AND (LOWER(username) = ANY($1) OR LOWER(handle) = ANY($1))`,
+      [config.adminNames]
+    );
+    if (rowCount) console.log(`👑 Назначено администраторов: ${rowCount}`);
+  } catch (err) {
+    console.error('Не удалось назначить администраторов:', err.message);
+  }
+}
+
 async function initDB() {
   for (const sql of MIGRATIONS) {
     try {
@@ -148,6 +207,8 @@ async function initDB() {
       console.error('❌ Ошибка миграции:', err.message, '\n   ', sql.trim().split('\n')[0]);
     }
   }
+  await ensureAdmins();
+
   console.log('✅ База данных синхронизирована');
 }
 

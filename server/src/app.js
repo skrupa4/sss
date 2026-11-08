@@ -6,8 +6,8 @@ const { HttpError } = require('./utils/errors');
 const app = express();
 
 app.use(cors({ origin: config.corsOrigin }));
-// Аватарка приходит как base64 (до ~400 КБ), поэтому лимит больше стандартного.
-app.use(express.json({ limit: '1mb' }));
+// Аватарки и сторис приходят как base64 (до ~700 КБ), поэтому лимит больше стандартного.
+app.use(express.json({ limit: '2mb' }));
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
@@ -17,6 +17,9 @@ app.use('/api/posts', require('./routes/posts'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/clans', require('./routes/clans'));
+app.use('/api/premium', require('./routes/premium'));
+app.use('/api/stories', require('./routes/stories'));
+app.use('/api/admin', require('./routes/admin'));
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Маршрут не найден' }));
 

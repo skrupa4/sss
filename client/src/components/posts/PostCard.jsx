@@ -6,6 +6,8 @@ import { profilePath } from '../../utils/router';
 import { timeAgo } from '../../utils/format';
 import Avatar from '../ui/Avatar';
 import { ClanTag, VerifiedBadge } from '../ui/Badges';
+import Nick from '../ui/Nick';
+import { useConfirm } from '../../context/DialogContext';
 import Icon from '../ui/Icons';
 import CommentSection from './CommentSection';
 
@@ -30,6 +32,7 @@ function ActionButton({ icon, count, active, activeClass = 'text-accent', onClic
  */
 export default function PostCard({ initialPost, removeMode, onRemoved }) {
   const { user } = useAuth();
+  const confirm = useConfirm();
   const [post, setPost] = useState(initialPost);
   const [showComments, setShowComments] = useState(false);
   const [error, setError] = useState('');
@@ -56,6 +59,14 @@ export default function PostCard({ initialPost, removeMode, onRemoved }) {
   });
 
   const remove = () => run(async () => {
+    const unrepost = removeMode === 'unrepost';
+    const ok = await confirm({
+      title: unrepost ? 'Убрать репост?' : 'Удалить пост?',
+      message: unrepost ? 'Пост исчезнет из ваших репостов.' : 'Пост и все комментарии к нему будут удалены без возможности восстановления.',
+      confirmLabel: unrepost ? 'Убрать' : 'Удалить',
+      danger: true,
+    });
+    if (!ok) return;
     if (removeMode === 'unrepost') await api.del(`/api/posts/${post.id}/repost`);
     else await api.del(`/api/posts/${post.id}`);
     onRemoved?.(post.id);
@@ -72,7 +83,7 @@ export default function PostCard({ initialPost, removeMode, onRemoved }) {
           </a>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-1.5">
-              <a href={`#${profilePath(post.username)}`} className="truncate text-[15px] font-semibold hover:text-accent">{post.username}</a>
+              <a href={`#${profilePath(post.username)}`} className="truncate text-[15px] font-semibold hover:opacity-80"><Nick name={post.username} color={post.nick_color} premium={post.is_premium} /></a>
               {post.is_verified && <VerifiedBadge />}
               <ClanTag tag={post.clan_tag} />
             </div>

@@ -14,6 +14,7 @@ import NotificationsPage from './pages/NotificationsPage';
 import ProfilePage from './pages/ProfilePage';
 import PremiumPage from './pages/PremiumPage';
 import AdminPage from './pages/AdminPage';
+import CoinsPage from './pages/CoinsPage';
 
 function Pages() {
   const { user } = useAuth();
@@ -25,6 +26,7 @@ function Pages() {
     case 'notifications': return <NotificationsPage />;
     case 'following': return <FeedPage mode="following" />;
     case 'premium': return <PremiumPage />;
+    case 'coins': return <CoinsPage />;
     case 'admin': return <AdminPage />;
     case 'clans': return param ? <ClanPage key={param} id={param} /> : <ClansPage />;
     default: return <FeedPage />;

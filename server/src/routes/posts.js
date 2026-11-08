@@ -12,7 +12,7 @@ const router = express.Router();
 
 // $1 всегда = имя смотрящего (для флагов «я лайкнул / репостнул»).
 const POST_SELECT = `
-  SELECT p.*, u.is_verified, u.avatar_version, ${nickColumns('u')}, c.tag AS clan_tag,
+  SELECT p.*, u.is_verified, u.avatar_version, ${nickColumns('u')}, CASE WHEN u.hide_clan_tag THEN NULL ELSE c.tag END AS clan_tag,
     EXISTS (SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.username = $1) AS liked_by_me,
     EXISTS (SELECT 1 FROM reposts rp WHERE rp.post_id = p.id AND rp.username = $1) AS reposted_by_me
   FROM posts p

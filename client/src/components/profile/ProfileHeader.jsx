@@ -9,6 +9,7 @@ import Icon from '../ui/Icons';
 import Nick from '../ui/Nick';
 import AvatarUploader from './AvatarUploader';
 import EditProfileForm from './EditProfileForm';
+import GiftModal from '../gifts/GiftModal';
 
 function Stat({ value, label }) {
   return (
@@ -31,6 +32,7 @@ function InfoRow({ icon, children }) {
 export default function ProfileHeader({ profile, isOwn, achievementsCount, onChange }) {
   const { updateUser } = useAuth();
   const [editing, setEditing] = useState(false);
+  const [giftOpen, setGiftOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -87,6 +89,9 @@ export default function ProfileHeader({ profile, isOwn, achievementsCount, onCha
                 </button>
                 <button type="button" onClick={() => navigate(messagesPath(profile.username))} className="flex items-center gap-2 rounded-xl border border-line bg-white/[0.04] px-4 py-2 text-sm font-semibold transition-colors hover:bg-white/10">
                   <Icon name="chat" className="h-4 w-4" /> Написать
+                </button>
+                <button type="button" onClick={() => setGiftOpen(true)} className="flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-300 transition-colors hover:bg-amber-400/20">
+                  <Icon name="gift" className="h-4 w-4" /> Подарить
                 </button>
               </>
             )}
@@ -145,6 +150,7 @@ export default function ProfileHeader({ profile, isOwn, achievementsCount, onCha
           </div>
         )}
         {error && <p className="mt-3 text-center text-sm text-accent md:text-left" role="alert">{error}</p>}
+        {!isOwn && <GiftModal open={giftOpen} onClose={() => setGiftOpen(false)} toUser={profile.username} />}
       </div>
     </section>
   );

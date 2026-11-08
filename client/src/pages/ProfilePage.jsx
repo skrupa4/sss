@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAsync } from '../hooks/useAsync';
 import { useSocketEvent } from '../hooks/useSocketEvent';
 import AchievementsCard from '../components/achievements/AchievementsCard';
+import GiftsCard from '../components/gifts/GiftsCard';
 import PostComposer from '../components/posts/PostComposer';
 import PostList from '../components/posts/PostList';
 import ProfileHeader from '../components/profile/ProfileHeader';
@@ -47,6 +48,7 @@ export default function ProfilePage({ username }) {
       />
 
       <AchievementsCard data={achievements} isOwn={isOwn} />
+      <GiftsCard username={username} isOwn={isOwn} />
 
       <div className="flex rounded-2xl border border-line bg-surface p-1" role="tablist">
         {TABS.map((t) => (

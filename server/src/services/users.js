@@ -8,7 +8,7 @@ const nickColumns = (a = 'u') =>
 const USER_COLUMNS = `
   u.id, u.username, u.handle, u.bio, u.followers, u.following,
   u.is_verified, u.created_at, u.avatar_version, u.premium_until, ${nickColumns('u')},
-  c.id AS clan_id, c.name AS clan_name, c.tag AS clan_tag, c.avatar_version AS clan_avatar_version,
+  c.id AS clan_id, c.name AS clan_name, CASE WHEN u.hide_clan_tag THEN NULL ELSE c.tag END AS clan_tag, u.hide_clan_tag, c.avatar_version AS clan_avatar_version,
   cm.role AS clan_role`;
 
 const USER_JOINS = `
@@ -19,7 +19,7 @@ const USER_JOINS = `
 // withEmail = «это данные самого пользователя»: добавляем приватные поля.
 async function fetchUser(db, field, value, { withEmail = false } = {}) {
   if (field !== 'id' && field !== 'username') throw new Error('Недопустимое поле');
-  const own = withEmail ? ', u.email, u.is_admin, u.premium_trial_used' : '';
+  const own = withEmail ? ', u.email, u.is_admin, u.premium_trial_used, u.coins, c.tag AS clan_tag_real' : '';
   const { rows } = await db.query(`SELECT ${USER_COLUMNS}${own} ${USER_JOINS} WHERE u.${field} = $1`, [value]);
   return rows[0] || null;
 }

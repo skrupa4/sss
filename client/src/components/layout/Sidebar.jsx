@@ -58,6 +58,7 @@ export default function Sidebar() {
         <NavItem href="/notifications" icon="bell" label="Уведомления" active={page === 'notifications'} badge={counters.notifications} />
         <NavItem href="/clans" icon="clans" label="Кланы" active={page === 'clans'} mobileHidden />
         <NavItem href={profilePath(user.username)} icon="user" label="Профиль" active={ownProfile} mobileHidden />
+        <NavItem href="/coins" icon="coin" label="Монеты" active={page === 'coins'} mobileHidden />
         <NavItem href="/premium" icon="crown" label="Premium" active={page === 'premium'} mobileHidden />
         {user.is_admin && <NavItem href="/admin" icon="shield" label="Админ-панель" active={page === 'admin'} mobileHidden />}
         <button type="button" onClick={() => setMenuOpen(true)} className="flex flex-1 items-center justify-center rounded-xl p-3 text-muted hover:bg-white/[0.04] hover:text-ink lg:hidden" aria-label="Ещё">
@@ -69,7 +70,7 @@ export default function Sidebar() {
         <Avatar username={user.username} version={user.avatar_version} size={36} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold"><Nick name={user.username} color={user.nick_color} premium={user.is_premium} /></p>
-          <p className="truncate text-xs text-muted">@{user.handle}</p>
+          <p className="truncate text-xs text-muted">@{user.handle} · <a href="#/coins" className="tabular-nums text-amber-300 hover:underline" title="Баланс монет">🪙 {user.coins ?? 0}</a></p>
         </div>
         <button type="button" onClick={logout} className="rounded-lg p-2 text-muted transition-colors hover:bg-white/[0.06] hover:text-accent" aria-label="Выйти" title="Выйти">
           <Icon name="logout" className="h-[18px] w-[18px]" />
@@ -81,6 +82,7 @@ export default function Sidebar() {
         <div className="-mx-2 flex flex-col">
           <SheetLink href={profilePath(user.username)} icon="user" label="Мой профиль" onClick={() => setMenuOpen(false)} />
           <SheetLink href="/clans" icon="clans" label="Кланы" onClick={() => setMenuOpen(false)} />
+          <SheetLink href="/coins" icon="coin" label={`Монеты · ${user.coins ?? 0}`} onClick={() => setMenuOpen(false)} />
           <SheetLink href="/premium" icon="crown" label="Premium" onClick={() => setMenuOpen(false)} />
           {user.is_admin && <SheetLink href="/admin" icon="shield" label="Админ-панель" onClick={() => setMenuOpen(false)} />}
           <button type="button" onClick={() => { setMenuOpen(false); logout(); }} className="flex items-center gap-3 rounded-xl px-3 py-3.5 text-left text-[15px] font-semibold text-accent transition-colors hover:bg-accent/10">

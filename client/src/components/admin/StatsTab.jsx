@@ -13,6 +13,9 @@ const CARDS = [
   ['messages', 'Сообщений'],
   ['clans', 'Кланов'],
   ['active_stories', 'Активных сторис'],
+  ['pending_verifications', 'Заявок на галочку'],
+  ['revenue_rub', 'Выручка, ₽'],
+  ['coins_sold', 'Продано монет'],
 ];
 
 export default function StatsTab() {

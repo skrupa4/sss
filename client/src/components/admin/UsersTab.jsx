@@ -15,6 +15,7 @@ const PREMIUM_DAYS = [7, 30, 90, 365];
 
 function UserRow({ u, busy, onAction }) {
   const [days, setDays] = useState(30);
+  const [coins, setCoins] = useState('');
   const btn = 'rounded-lg border border-line px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-white/[0.06] disabled:opacity-50';
   return (
     <li className="rounded-2xl border border-line bg-surface p-4">
@@ -28,7 +29,7 @@ function UserRow({ u, busy, onAction }) {
             {u.is_banned && <span className="rounded-md bg-red-500/10 px-1.5 py-0.5 text-[11px] text-red-400">заблокирован</span>}
             {u.premium_active && <span className="rounded-md bg-accent/10 px-1.5 py-0.5 text-[11px] text-accent">premium</span>}
           </p>
-          <p className="truncate text-xs text-muted">@{u.handle} · {u.email} · с {formatRegDate(u.created_at)} · постов: {u.posts}</p>
+          <p className="truncate text-xs text-muted">@{u.handle} · {u.email} · с {formatRegDate(u.created_at)} · постов: {u.posts} · монет: {u.coins}</p>
         </div>
       </div>
 
@@ -46,6 +47,10 @@ function UserRow({ u, busy, onAction }) {
             {PREMIUM_DAYS.map((d) => <option key={d} value={d}>{d} дн.</option>)}
           </select>
           <button type="button" disabled={busy} className={btn} onClick={() => onAction(u, 'grant', days)}>Выдать Premium</button>
+        </span>
+        <span className="flex items-center gap-1">
+          <input type="number" value={coins} onChange={(e) => setCoins(e.target.value)} placeholder="±монеты" className="input !w-24 !rounded-lg !py-1.5 !text-xs" aria-label="Начислить монеты" />
+          <button type="button" disabled={busy || !Number.isInteger(Number(coins)) || Number(coins) === 0} className={btn} onClick={() => { onAction(u, 'coins', Number(coins)); setCoins(''); }}>Монеты</button>
         </span>
         {u.premium_until && !u.is_admin && (
           <button type="button" disabled={busy} className={btn} onClick={() => onAction(u, 'revoke')}>Снять Premium</button>
@@ -76,6 +81,8 @@ export default function UsersTab() {
       }
       case 'grant':
         return patch({ premium_days: days }, `Premium выдан на ${days} дн.`);
+      case 'coins':
+        return patch({ coins_delta: days }, `Баланс изменён на ${days > 0 ? '+' : ''}${days}`);
       case 'revoke':
         return patch({ revoke_premium: true }, 'Premium снят');
       case 'delete': {

@@ -44,7 +44,7 @@ export default function ClansPage() {
 
       {user.clan_id && (
         <a href={`#${clanPath(user.clan_id)}`} className="flex items-center gap-3 rounded-2xl border border-accent/30 bg-accent/10 p-4 transition-colors hover:bg-accent/15">
-          <ClanAvatar id={user.clan_id} tag={user.clan_tag} version={user.clan_avatar_version} size={44} />
+          <ClanAvatar id={user.clan_id} tag={user.clan_tag_real ?? user.clan_tag} version={user.clan_avatar_version} size={44} />
           <span className="text-sm">Ваш клан: <b className="font-semibold">{user.clan_name}</b></span>
         </a>
       )}

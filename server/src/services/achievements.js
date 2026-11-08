@@ -1,5 +1,6 @@
 const { pool } = require('../db');
 const { emitToUsername, pushCounters } = require('./realtime');
+const { addCoins, ACHIEVEMENT_REWARDS } = require('./coins');
 
 // tier: common | rare | epic | legendary (клиент красит значки по редкости)
 const A = (code, title, description, icon, tier, metric, target) => ({ code, title, description, icon, tier, metric, target });
@@ -40,6 +41,8 @@ const DEFINITIONS = [
   A('premium', 'Премиум', 'Активируйте Premium', '💎', 'epic', 'premium', 1),
   A('story_1', 'Рассказчик', 'Опубликуйте первую сторис', '🎬', 'rare', 'stories', 1),
   A('story_10', 'Режиссёр', 'Опубликуйте 10 сторис', '🎞️', 'epic', 'stories', 10),
+  A('gift_send', 'Щедрая душа', 'Подарите первый подарок', '🎁', 'common', 'gifts_sent', 1),
+  A('gift_get', 'Мне? Спасибо!', 'Получите первый подарок', '🎀', 'common', 'gifts_received', 1),
   A('verified', 'Подтверждённый', 'Получите подтверждение аккаунта', '✅', 'legendary', 'verified', 1),
 
   A('age_7', 'Новосёл', 'Будьте с нами 7 дней', '🏠', 'common', 'age_days', 7),
@@ -55,6 +58,8 @@ async function loadMetrics(userId) {
             u.premium_trial_used, u.premium_until,
             (SELECT COUNT(*) FROM stories WHERE user_id = u.id)::int AS stories,
             (SELECT COUNT(*) FROM posts WHERE username = u.username)::int AS posts,
+            (SELECT COUNT(*) FROM gifts_sent WHERE from_user_id = u.id)::int AS gifts_sent,
+            (SELECT COUNT(*) FROM gifts_sent WHERE to_user_id = u.id)::int AS gifts_received,
             (SELECT COUNT(*) FROM post_likes WHERE username = u.username)::int AS likes_given,
             (SELECT COALESCE(SUM(likes), 0) FROM posts WHERE username = u.username)::int AS likes_received,
             (SELECT COUNT(*) FROM comments WHERE username = u.username)::int AS comments,
@@ -74,6 +79,8 @@ async function loadMetrics(userId) {
   return {
     username: m.username,
     posts: m.posts,
+    gifts_sent: m.gifts_sent,
+    gifts_received: m.gifts_received,
     likes_given: m.likes_given,
     likes_received: m.likes_received,
     following: m.following || 0,
@@ -112,7 +119,10 @@ async function checkAchievements(userId, { silent = false } = {}) {
         'INSERT INTO user_achievements (user_id, code) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING code',
         [userId, def.code]
       );
-      if (inserted.rows.length) unlocked.push(def);
+      if (inserted.rows.length) {
+        unlocked.push(def);
+        await addCoins(pool, userId, ACHIEVEMENT_REWARDS[def.tier] || 0);
+      }
     }
 
     if (!silent) {
@@ -120,10 +130,11 @@ async function checkAchievements(userId, { silent = false } = {}) {
         // Запись в «Уведомлениях» + всплывашка по сокету (без дублирующего notification:new).
         await pool.query(
           "INSERT INTO notifications (user_to, user_from, type, content) VALUES ($1, 'SSS', 'achievement', $2)",
-          [metrics.username, def.title]
+          [metrics.username, `${def.title} (+${ACHIEVEMENT_REWARDS[def.tier] || 0} монет)`]
         );
         await emitToUsername(metrics.username, 'achievement:unlocked', {
           code: def.code, title: def.title, description: def.description, icon: def.icon, tier: def.tier,
+          reward: ACHIEVEMENT_REWARDS[def.tier] || 0,
         });
       }
       if (unlocked.length) await pushCounters(metrics.username);
@@ -156,6 +167,7 @@ async function getAchievements(userId) {
     return {
       code: def.code, title: def.title, description: def.description, icon: def.icon, tier: def.tier,
       target: def.target,
+      reward: ACHIEVEMENT_REWARDS[def.tier] || 0,
       progress: unlocked ? def.target : Math.min(metrics[def.metric] || 0, def.target),
       unlocked,
       unlocked_at: unlockedAt.get(def.code) || null,

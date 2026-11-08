@@ -5,11 +5,13 @@ import PostsTab from '../components/admin/PostsTab';
 import SettingsTab from '../components/admin/SettingsTab';
 import StatsTab from '../components/admin/StatsTab';
 import UsersTab from '../components/admin/UsersTab';
+import VerificationsTab from '../components/admin/VerificationsTab';
 import { EmptyState } from '../components/ui/Spinner';
 
 const TABS = [
   { id: 'stats', label: 'Обзор', Component: StatsTab },
   { id: 'users', label: 'Пользователи', Component: UsersTab },
+  { id: 'verifications', label: 'Заявки на галочку', Component: VerificationsTab },
   { id: 'posts', label: 'Посты', Component: PostsTab },
   { id: 'clans', label: 'Кланы', Component: ClansTab },
   { id: 'settings', label: 'Настройки', Component: SettingsTab },

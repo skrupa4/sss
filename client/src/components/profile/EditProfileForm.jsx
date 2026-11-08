@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { api } from '../../api/client';
+import VerificationRequest from './VerificationRequest';
 
 const BIO_MAX = 200;
 
 export default function EditProfileForm({ profile, onSaved, onCancel }) {
-  const [form, setForm] = useState({ username: profile.username, handle: profile.handle, bio: profile.bio || '' });
+  const [form, setForm] = useState({ username: profile.username, handle: profile.handle, bio: profile.bio || '', hide_clan_tag: Boolean(profile.hide_clan_tag) });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -44,6 +45,16 @@ export default function EditProfileForm({ profile, onSaved, onCancel }) {
         </span>
         <textarea className="input resize-none" rows={3} value={form.bio} onChange={set('bio')} maxLength={BIO_MAX} placeholder="Расскажите о себе" />
       </label>
+      {profile.clan_id && (
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-surface/60 p-3 text-sm">
+          <input type="checkbox" checked={form.hide_clan_tag} onChange={(e) => setForm((f) => ({ ...f, hide_clan_tag: e.target.checked }))} className="mt-0.5 h-4 w-4 accent-[var(--color-accent)]" />
+          <span>
+            <span className="block font-medium">Скрыть тег клана</span>
+            <span className="text-muted">Тег не будет показываться рядом с вашим ником в постах и профиле. Вы по-прежнему состоите в клане.</span>
+          </span>
+        </label>
+      )}
+      <VerificationRequest />
       {error && <p className="text-sm text-accent" role="alert">{error}</p>}
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onCancel} className="rounded-xl border border-line px-4 py-2 text-sm font-semibold text-muted hover:text-ink">

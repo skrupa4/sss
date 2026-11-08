@@ -174,6 +174,45 @@ const MIGRATIONS = [
   `INSERT INTO app_settings (key, value) VALUES ('premium_trial_enabled', 'true') ON CONFLICT DO NOTHING`,
   `INSERT INTO app_settings (key, value) VALUES ('premium_trial_days', '30') ON CONFLICT DO NOTHING`,
 
+  // Монеты, подарки, платежи, скрытие тега клана и заявки на галочку.
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS coins INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS hide_clan_tag BOOLEAN NOT NULL DEFAULT false`,
+  `CREATE TABLE IF NOT EXISTS gifts_sent (
+     id SERIAL PRIMARY KEY,
+     from_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+     to_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     gift_code TEXT NOT NULL,
+     price INTEGER NOT NULL,
+     message TEXT DEFAULT '',
+     is_anonymous BOOLEAN NOT NULL DEFAULT false,
+     created_at TIMESTAMPTZ DEFAULT NOW()
+   )`,
+  `CREATE INDEX IF NOT EXISTS gifts_to_idx ON gifts_sent (to_user_id, created_at DESC)`,
+  `CREATE TABLE IF NOT EXISTS coin_orders (
+     id SERIAL PRIMARY KEY,
+     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+     pack_code TEXT NOT NULL,
+     coins INTEGER NOT NULL,
+     amount_rub NUMERIC(10,2) NOT NULL,
+     status TEXT NOT NULL DEFAULT 'pending',
+     provider_payment_id TEXT UNIQUE,
+     created_at TIMESTAMPTZ DEFAULT NOW(),
+     paid_at TIMESTAMPTZ
+   )`,
+  `CREATE TABLE IF NOT EXISTS verification_requests (
+     id SERIAL PRIMARY KEY,
+     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     reason TEXT NOT NULL,
+     photo BYTEA NOT NULL,
+     photo_type TEXT NOT NULL,
+     status TEXT NOT NULL DEFAULT 'pending',
+     admin_note TEXT DEFAULT '',
+     created_at TIMESTAMPTZ DEFAULT NOW(),
+     reviewed_at TIMESTAMPTZ,
+     reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+   )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS verification_one_pending ON verification_requests (user_id) WHERE status = 'pending'`,
+
   `CREATE INDEX IF NOT EXISTS stories_user_idx ON stories (user_id, expires_at)`,
 
   // Индексы. Уникальные на лайках/репостах могут не создаться, если в старых данных есть дубли — не критично.

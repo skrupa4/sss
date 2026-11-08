@@ -17,8 +17,14 @@ const NOTIFICATION_TEXT = {
   // Системные уведомления приходят не от пользователя, поэтому без «@имя».
   achievement: (n) => `Новое достижение: ${n.content}`,
   announcement: (n) => n.content,
+  gift: (n) => `подарил вам подарок «${n.content}»`,
+  gift_anon: (n) => `Вам подарили «${n.content}» 🎁`,
+  verification_request: () => 'отправил заявку на галочку',
+  verification_approved: () => 'Заявка одобрена — ваш аккаунт подтверждён ✅',
+  verification_rejected: (n) => (n.content ? `Заявка на галочку отклонена: ${n.content}` : 'Заявка на галочку отклонена'),
 };
-export const isSystemNotification = (n) => n.type === 'achievement' || n.type === 'announcement';
+const SYSTEM_TYPES = new Set(['achievement', 'announcement', 'gift_anon', 'verification_approved', 'verification_rejected']);
+export const isSystemNotification = (n) => SYSTEM_TYPES.has(n.type);
 export const notificationText = (n) => (NOTIFICATION_TEXT[n.type] || (() => 'новое уведомление'))(n);
 
 /**
@@ -26,7 +32,7 @@ export const notificationText = (n) => (NOTIFICATION_TEXT[n.type] || (() => 'н�
  * Сервер пушит события — страницы не нужно обновлять и опрашивать по таймеру.
  */
 export function RealtimeProvider({ children }) {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { push } = useToasts();
   const [socket, setSocket] = useState(null);
   const [counters, setCounters] = useState({ messages: 0, notifications: 0 });
@@ -67,9 +73,14 @@ export function RealtimeProvider({ children }) {
   useEffect(() => {
     if (!socket) return undefined;
     const onNotification = (n) => push({
-      title: `@${n.user_from}`,
+      title: isSystemNotification(n) ? 'SSS' : `@${n.user_from}`,
       body: notificationText(n),
-      onClick: () => navigate(n.type === 'follow' || n.type === 'clan_join' ? profilePath(n.user_from) : '/notifications'),
+      onClick: () => {
+        if (['follow', 'clan_join', 'gift'].includes(n.type)) navigate(profilePath(n.user_from));
+        else if (n.type === 'verification_request') navigate('/admin');
+        else if (n.type === 'gift_anon') navigate(profilePath(user.username));
+        else navigate('/notifications');
+      },
     });
     const onMessage = (m) => {
       if (m.sender === user.username || openChatRef.current === m.sender) return;
@@ -83,7 +94,7 @@ export function RealtimeProvider({ children }) {
       type: 'achievement',
       emoji: a.icon,
       title: 'Новое достижение!',
-      body: `${a.title} — ${a.description}`,
+      body: `${a.title} — ${a.description}${a.reward ? ` · +${a.reward} 🪙` : ''}`,
       onClick: () => navigate(profilePath(user.username)),
     });
     const onAnnouncement = (a) => {
@@ -94,13 +105,17 @@ export function RealtimeProvider({ children }) {
     socket.on('message:new', onMessage);
     socket.on('achievement:unlocked', onAchievement);
     socket.on('announcement', onAnnouncement);
+    // Баланс монет приходит с сервера при любом изменении (награда, покупка, подарок).
+    const onCoins = ({ coins }) => updateUser((u) => (u ? { ...u, coins } : u));
+    socket.on('coins', onCoins);
     return () => {
       socket.off('notification:new', onNotification);
       socket.off('message:new', onMessage);
       socket.off('achievement:unlocked', onAchievement);
       socket.off('announcement', onAnnouncement);
+      socket.off('coins', onCoins);
     };
-  }, [socket, push, user?.username, refreshCounters]);
+  }, [socket, push, user?.username, refreshCounters, updateUser]);
 
   const value = useMemo(() => ({ socket, counters, connected, openChatRef, refreshCounters }), [socket, counters, connected, refreshCounters]);
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;

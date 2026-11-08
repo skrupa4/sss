@@ -4,6 +4,8 @@ const { requireAdmin } = require('../middleware/auth');
 const { getSettings, saveSettings } = require('../services/settings');
 const { checkAchievements } = require('../services/achievements');
 const { broadcast } = require('../services/realtime');
+const { addCoins } = require('../services/coins');
+const { createNotification } = require('../services/notifications');
 const { HttpError } = require('../utils/errors');
 const { str, validateText } = require('../utils/validate');
 
@@ -25,7 +27,10 @@ router.get('/stats', async (req, res) => {
        (SELECT COUNT(*) FROM comments)::int AS comments,
        (SELECT COUNT(*) FROM messages)::int AS messages,
        (SELECT COUNT(*) FROM clans)::int AS clans,
-       (SELECT COUNT(*) FROM stories WHERE expires_at > NOW())::int AS active_stories`
+       (SELECT COUNT(*) FROM stories WHERE expires_at > NOW())::int AS active_stories,
+       (SELECT COUNT(*) FROM verification_requests WHERE status = 'pending')::int AS pending_verifications,
+       (SELECT COALESCE(SUM(amount_rub), 0) FROM coin_orders WHERE status = 'paid')::int AS revenue_rub,
+       (SELECT COALESCE(SUM(coins), 0) FROM coin_orders WHERE status = 'paid')::int AS coins_sold`
   );
   res.json(rows[0]);
 });
@@ -34,7 +39,7 @@ router.get('/stats', async (req, res) => {
 router.get('/users', async (req, res) => {
   const q = str(req.query.q);
   const { rows } = await pool.query(
-    `SELECT u.id, u.username, u.handle, u.email, u.created_at, u.avatar_version, u.is_verified, u.is_banned, u.is_admin,
+    `SELECT u.id, u.username, u.handle, u.email, u.created_at, u.avatar_version, u.is_verified, u.is_banned, u.is_admin, u.coins,
             u.premium_until, (u.premium_until IS NOT NULL AND u.premium_until > NOW()) AS premium_active,
             (SELECT COUNT(*)::int FROM posts p WHERE p.username = u.username) AS posts
      FROM users u
@@ -50,7 +55,7 @@ router.patch('/users/:id', async (req, res) => {
   const { rows } = await pool.query('SELECT id, username, is_admin FROM users WHERE id = $1', [id]);
   if (!rows.length) throw new HttpError(404, 'Пользователь не найден');
   const target = rows[0];
-  const { is_verified, is_banned, premium_days, revoke_premium } = req.body;
+  const { is_verified, is_banned, premium_days, revoke_premium, coins_delta } = req.body;
 
   if (typeof is_banned === 'boolean') {
     if (target.id === req.user.id || target.is_admin) throw new HttpError(400, 'Администратора заблокировать нельзя');
@@ -66,6 +71,11 @@ router.patch('/users/:id', async (req, res) => {
       `UPDATE users SET premium_until = GREATEST(NOW(), COALESCE(premium_until, NOW())) + ($2 || ' days')::interval WHERE id = $1`,
       [id, String(days)]
     );
+  }
+  if (coins_delta !== undefined) {
+    const delta = Number(coins_delta);
+    if (!Number.isInteger(delta) || delta === 0 || Math.abs(delta) > 1_000_000) throw new HttpError(400, 'Количество монет: целое число, не больше 1 000 000');
+    await addCoins(pool, id, delta);
   }
   if (revoke_premium === true) {
     await pool.query('UPDATE users SET premium_until = NULL, nick_color = NULL WHERE id = $1', [id]);
@@ -165,6 +175,53 @@ router.delete('/clans/:id/avatar', async (req, res) => {
 router.delete('/clans/:id', async (req, res) => {
   const { rowCount } = await pool.query('DELETE FROM clans WHERE id = $1', [Number(req.params.id)]);
   if (!rowCount) throw new HttpError(404, 'Клан не найден');
+  res.json({ success: true });
+});
+
+// ---------- Заявки на галочку ----------
+router.get('/verifications', async (req, res) => {
+  const status = ['pending', 'approved', 'rejected'].includes(req.query.status) ? req.query.status : null;
+  const { rows } = await pool.query(
+    `SELECT v.id, v.status, v.reason, v.admin_note, v.created_at, v.reviewed_at,
+            u.id AS user_id, u.username, u.handle, u.avatar_version, u.followers, u.created_at AS user_created_at, u.is_verified
+     FROM verification_requests v JOIN users u ON u.id = v.user_id
+     WHERE ($1::text IS NULL OR v.status = $1)
+     ORDER BY (v.status = 'pending') DESC, v.created_at DESC LIMIT 100`,
+    [status]
+  );
+  res.json(rows);
+});
+
+// Фото отдаётся только админу; клиент забирает его через fetch с токеном.
+router.get('/verifications/:id/photo', async (req, res) => {
+  const { rows } = await pool.query('SELECT photo, photo_type FROM verification_requests WHERE id = $1', [Number(req.params.id)]);
+  if (!rows.length) return res.status(404).end();
+  res.set('Content-Type', rows[0].photo_type);
+  res.set('Cache-Control', 'private, max-age=600');
+  res.send(rows[0].photo);
+});
+
+router.post('/verifications/:id/:action', async (req, res) => {
+  const approve = req.params.action === 'approve';
+  if (!approve && req.params.action !== 'reject') throw new HttpError(404, 'Маршрут не найден');
+  const note = str(req.body.note);
+  if (note.length > 200) throw new HttpError(400, 'Комментарий: максимум 200 символов');
+
+  const userId = await withTransaction(async (db) => {
+    const found = await db.query('SELECT user_id, status FROM verification_requests WHERE id = $1 FOR UPDATE', [Number(req.params.id)]);
+    if (!found.rows.length) throw new HttpError(404, 'Заявка не найдена');
+    if (found.rows[0].status !== 'pending') throw new HttpError(400, 'Заявка уже рассмотрена');
+    await db.query(
+      'UPDATE verification_requests SET status = $1, admin_note = $2, reviewed_at = NOW(), reviewed_by = $3 WHERE id = $4',
+      [approve ? 'approved' : 'rejected', note, req.user.id, Number(req.params.id)]
+    );
+    if (approve) await db.query('UPDATE users SET is_verified = true WHERE id = $1', [found.rows[0].user_id]);
+    return found.rows[0].user_id;
+  });
+
+  const u = await pool.query('SELECT username FROM users WHERE id = $1', [userId]);
+  await createNotification(u.rows[0].username, 'SSS', approve ? 'verification_approved' : 'verification_rejected', null, note || null);
+  if (approve) await checkAchievements(userId);
   res.json({ success: true });
 });
 

@@ -20,6 +20,9 @@ app.use('/api/clans', require('./routes/clans'));
 app.use('/api/premium', require('./routes/premium'));
 app.use('/api/stories', require('./routes/stories'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/gifts', require('./routes/gifts'));
+app.use('/api/coins', require('./routes/coins'));
+app.use('/api/verification', require('./routes/verification'));
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Маршрут не найден' }));
 

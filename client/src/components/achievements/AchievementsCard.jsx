@@ -12,6 +12,7 @@ function AchievementRow({ item }) {
         <div className="flex flex-wrap items-center gap-x-2">
           <p className={`text-sm font-semibold ${item.unlocked ? 'text-ink' : 'text-muted'}`}>{item.title}</p>
           <span className={`text-[11px] font-medium ${tier.text}`}>{tier.label}</span>
+          {item.reward > 0 && <span className="text-[11px] font-medium text-amber-300">+{item.reward} 🪙</span>}
         </div>
         <p className="text-[13px] text-muted">{item.description}</p>
         {item.unlocked ? (

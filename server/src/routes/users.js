@@ -32,6 +32,7 @@ router.put('/me', requireAuth, async (req, res) => {
   const username = validateUsername(req.body.username);
   const handle = validateHandle(req.body.handle);
   const bio = validateBio(req.body.bio);
+  const hideClanTag = typeof req.body.hide_clan_tag === 'boolean' ? req.body.hide_clan_tag : null; // null = не менять
   const userId = req.user.id;
   if (!req.user.is_admin && (isReservedName(username) || isReservedName(handle))) {
     throw new HttpError(400, 'Это имя зарезервировано');
@@ -52,7 +53,7 @@ router.put('/me', requireAuth, async (req, res) => {
         if (taken.rows.length) throw new HttpError(400, 'Такой хэндл уже занят');
       }
 
-      await db.query('UPDATE users SET username = $1, handle = $2, bio = $3 WHERE id = $4', [username, handle, bio, userId]);
+      await db.query('UPDATE users SET username = $1, handle = $2, bio = $3, hide_clan_tag = COALESCE($5::boolean, hide_clan_tag) WHERE id = $4', [username, handle, bio, userId, hideClanTag]);
 
       if (username !== current.username) {
         for (const [table, column] of USERNAME_REFS) {

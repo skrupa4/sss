@@ -56,5 +56,7 @@ module.exports = {
   JWT_EXPIRES_IN: env.JWT_EXPIRES_IN || '30d',
   // Пусто = разрешить любой origin (как было раньше). Для продакшена лучше задать CLIENT_ORIGIN.
   adminNames,
+  // Приём платежей (ЮKassa). Без этих ключей покупка монет отключена.
+  yookassa: { shopId: env.YOOKASSA_SHOP_ID || '', secretKey: env.YOOKASSA_SECRET_KEY || '', apiUrl: env.YOOKASSA_API_URL || 'https://api.yookassa.ru/v3' },
   corsOrigin: origins.length ? origins : true,
 };

@@ -8,6 +8,8 @@ import { profilePath } from '../utils/router';
 import Avatar from '../components/ui/Avatar';
 import { EmptyState, ErrorState, Spinner } from '../components/ui/Spinner';
 
+const SYSTEM_ICON = { achievement: '🏆', announcement: '📢', gift_anon: '🎁', verification_approved: '✅', verification_rejected: '❌' };
+
 export default function NotificationsPage() {
   const { counters } = useRealtime();
   const loader = useCallback(() => api.get('/api/notifications'), []);
@@ -55,12 +57,12 @@ export default function NotificationsPage() {
           {items.map((n) => (
             <li key={n.id}>
               <a
-                href={isSystemNotification(n) ? '#/notifications' : `#${profilePath(n.user_from)}`}
+                href={n.type === 'gift_anon' ? '#/profile' : n.type === 'verification_request' ? '#/admin' : isSystemNotification(n) ? '#/notifications' : `#${profilePath(n.user_from)}`}
                 className={`flex items-start gap-3 p-4 transition-colors hover:bg-white/[0.03] ${n.is_read ? 'opacity-70' : 'bg-white/[0.03]'}`}
               >
                 {isSystemNotification(n) ? (
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400/25 to-accent/25 text-xl">
-                    {n.type === 'achievement' ? '🏆' : '📢'}
+                    {SYSTEM_ICON[n.type] || '📢'}
                   </span>
                 ) : (
                   <Avatar username={n.user_from} version={n.from_avatar_version} size={40} />

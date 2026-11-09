@@ -64,6 +64,9 @@ module.exports = {
     resendKey: env.RESEND_API_KEY || '',
     from: env.MAIL_FROM || '',
     fromName: env.MAIL_FROM_NAME || 'SSS',
+    // Своя «почтовая труба» по HTTPS (например, скрипт Google Apps Script, отправляющий через ваш Gmail).
+    webhookUrl: env.MAIL_WEBHOOK_URL || '',
+    webhookSecret: env.MAIL_WEBHOOK_SECRET || '',
   },
   corsOrigin: origins.length ? origins : true,
 };

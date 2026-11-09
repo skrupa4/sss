@@ -3,6 +3,7 @@ const config = require('../config');
 const { HttpError } = require('../utils/errors');
 
 const provider = () => {
+  if (config.mail.webhookUrl && config.mail.webhookSecret) return 'webhook';
   if (!config.mail.from) return null;
   if (config.mail.brevoKey) return 'brevo';
   if (config.mail.resendKey) return 'resend';
@@ -10,10 +11,34 @@ const provider = () => {
 };
 const mailEnabled = () => provider() !== null;
 
+// Скрипт Google отвечает редиректом на страницу с результатом: fetch идёт по нему сам, письмо к этому моменту уже отправлено.
+async function sendViaWebhook({ to, subject, html, text }) {
+  try {
+    const res = await fetch(config.mail.webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret: config.mail.webhookSecret, to, subject, html, text, name: config.mail.fromName }),
+      redirect: 'follow',
+      signal: AbortSignal.timeout(20_000),
+    });
+    const raw = await res.text();
+    let data = null;
+    try { data = JSON.parse(raw); } catch { /* не JSON */ }
+    if (!res.ok || !data || data.ok !== true) {
+      console.error(`Почта (webhook): HTTP ${res.status}`, raw.slice(0, 300));
+      throw new Error('mail failed');
+    }
+  } catch (err) {
+    if (err.message !== 'mail failed') console.error('Почта (webhook):', err.message);
+    throw new HttpError(502, 'Не удалось отправить письмо. Проверьте адрес почты и попробуйте позже');
+  }
+}
+
 async function sendMail({ to, subject, html, text }) {
   const which = provider();
   if (!which) throw new HttpError(503, 'Почта на сервере не настроена');
   const { from, fromName } = config.mail;
+  if (which === 'webhook') return sendViaWebhook({ to, subject, html, text });
   const request = which === 'brevo'
     ? {
         url: 'https://api.brevo.com/v3/smtp/email',

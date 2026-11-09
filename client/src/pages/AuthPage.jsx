@@ -5,8 +5,7 @@ import Logo from '../components/ui/Logo';
 const RESEND_SECONDS = 60;
 
 // Второй шаг регистрации: ввод 6-значного кода из письма.
-function CodeStep({ email, onBack }) {
-  const { verifyRegistration, resendCode } = useAuth();
+function CodeStep({ email, title, onSubmit, onResend, onBack }) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -24,7 +23,7 @@ function CodeStep({ email, onBack }) {
     setBusy(true);
     setError('');
     try {
-      await verifyRegistration(email, code);
+      await onSubmit(code);
     } catch (err) {
       setError(err.message);
       setBusy(false);
@@ -35,7 +34,7 @@ function CodeStep({ email, onBack }) {
     setError('');
     setInfo('');
     try {
-      await resendCode(email);
+      await onResend();
       setInfo('Новый код отправлен');
       setWait(RESEND_SECONDS);
     } catch (err) {
@@ -47,7 +46,7 @@ function CodeStep({ email, onBack }) {
     <form onSubmit={submit} className="space-y-4 rounded-3xl border border-line bg-surface p-6">
       <div className="text-center">
         <p className="text-4xl">📬</p>
-        <h2 className="mt-2 text-lg font-bold">Подтвердите почту</h2>
+        <h2 className="mt-2 text-lg font-bold">{title}</h2>
         <p className="mt-1 text-sm text-muted">Мы отправили 6-значный код на <b className="text-ink">{email}</b>. Проверьте и папку «Спам».</p>
       </div>
       <input
@@ -68,7 +67,7 @@ function CodeStep({ email, onBack }) {
         {busy ? 'Проверяем…' : 'Подтвердить'}
       </button>
       <div className="flex items-center justify-between text-sm">
-        <button type="button" onClick={onBack} className="text-muted hover:text-ink">← Изменить данные</button>
+        <button type="button" onClick={onBack} className="text-muted hover:text-ink">← Назад</button>
         <button type="button" onClick={resend} disabled={wait > 0} className="font-semibold text-ink hover:text-accent disabled:text-faint disabled:hover:text-faint">
           {wait > 0 ? `Отправить ещё раз (${wait})` : 'Отправить ещё раз'}
         </button>
@@ -78,12 +77,13 @@ function CodeStep({ email, onBack }) {
 }
 
 export default function AuthPage() {
-  const { login, register } = useAuth();
+  const { login, register, verifyRegistration, resendCode, verifyLogin, resendLoginCode } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [form, setForm] = useState({ username: '', email: '', password: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [codeFor, setCodeFor] = useState(null); // адрес, на который отправлен код
+  // Шаг с кодом из письма: { kind: 'register' | 'login', email, ticket? }
+  const [step, setStep] = useState(null);
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
@@ -93,10 +93,11 @@ export default function AuthPage() {
     setError('');
     try {
       if (isLogin) {
-        await login(form.username, form.password);
+        const res = await login(form.username, form.password);
+        if (res?.needs2fa) { setStep({ kind: 'login', email: res.email, ticket: res.ticket }); setBusy(false); }
       } else {
         const res = await register(form.username, form.email, form.password);
-        if (res?.needsCode) { setCodeFor(res.email); setBusy(false); }
+        if (res?.needsCode) { setStep({ kind: 'register', email: res.email }); setBusy(false); }
       }
     } catch (err) {
       setError(err.message);
@@ -109,11 +110,18 @@ export default function AuthPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <h1 className="flex justify-center"><Logo size="lg" /></h1>
-          <p className="mt-2 text-sm text-muted">{codeFor ? 'Остался один шаг.' : isLogin ? 'С возвращением! Войдите в аккаунт.' : 'Создайте аккаунт за минуту.'}</p>
+          <p className="mt-2 text-sm text-muted">{step ? 'Остался один шаг.' : isLogin ? 'С возвращением! Войдите в аккаунт.' : 'Создайте аккаунт за минуту.'}</p>
         </div>
 
-        {codeFor ? (
-          <CodeStep email={codeFor} onBack={() => setCodeFor(null)} />
+        {step ? (
+          <CodeStep
+            key={step.kind}
+            email={step.email}
+            title={step.kind === 'login' ? 'Двухфакторная защита' : 'Подтвердите почту'}
+            onSubmit={(code) => (step.kind === 'login' ? verifyLogin(step.ticket, code) : verifyRegistration(step.email, code))}
+            onResend={() => (step.kind === 'login' ? resendLoginCode(step.ticket) : resendCode(step.email))}
+            onBack={() => { setStep(null); setForm((f) => ({ ...f, password: '' })); }}
+          />
         ) : (
           <>
             <form onSubmit={submit} className="space-y-3 rounded-3xl border border-line bg-surface p-6">

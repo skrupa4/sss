@@ -5,6 +5,8 @@ const { requireAuth } = require('../middleware/auth');
 const { HttpError } = require('../utils/errors');
 const { validateEmail, validatePassword, str } = require('../utils/validate');
 const { mailEnabled, sendCode } = require('../services/mailer');
+const { emailCodesRequired } = require('../services/settings');
+const challenges = require('../services/challenges');
 const { makeCode, hashCode, codeMatches, TTL_MINUTES, MAX_ATTEMPTS, RESEND_COOLDOWN_SEC } = require('../services/codes');
 
 const router = express.Router();
@@ -33,7 +35,7 @@ router.post('/email', async (req, res) => {
   if (current.rows[0].email === email) throw new HttpError(400, 'Это уже ваша текущая почта');
   if ((await pool.query('SELECT 1 FROM users WHERE LOWER(email) = $1', [email])).rows.length) throw new HttpError(400, 'Эта почта уже занята');
 
-  if (!mailEnabled()) {
+  if (!(await emailCodesRequired())) {
     await pool.query('UPDATE users SET email = $1 WHERE id = $2', [email, req.user.id]);
     return res.json({ changed: true, email });
   }
@@ -71,6 +73,29 @@ router.post('/email/confirm', async (req, res) => {
   }
   await pool.query('DELETE FROM email_changes WHERE user_id = $1', [req.user.id]);
   res.json({ changed: true, email: change.new_email });
+});
+
+// ---------- Двухфакторная защита: код на почту при каждом входе ----------
+router.post('/2fa/start', async (req, res) => {
+  if (!mailEnabled()) throw new HttpError(503, 'На сервере не настроена отправка почты — включить защиту нельзя');
+  await checkPassword(req.user.id, req.body.password);
+  const { rows } = await pool.query('SELECT email, two_factor FROM users WHERE id = $1', [req.user.id]);
+  if (rows[0].two_factor) throw new HttpError(400, 'Двухфакторная защита уже включена');
+  await challenges.issue({ userId: req.user.id, email: rows[0].email, purpose: 'twofa' });
+  res.json({ needsCode: true, email: challenges.maskEmail(rows[0].email) });
+});
+
+router.post('/2fa/confirm', async (req, res) => {
+  await challenges.check(`enable2fa:${req.user.id}`, req.body.code, { userId: req.user.id });
+  await pool.query('UPDATE users SET two_factor = true WHERE id = $1', [req.user.id]);
+  res.json({ two_factor: true });
+});
+
+router.post('/2fa/disable', async (req, res) => {
+  await checkPassword(req.user.id, req.body.password);
+  await pool.query('UPDATE users SET two_factor = false WHERE id = $1', [req.user.id]);
+  await pool.query('DELETE FROM login_challenges WHERE user_id = $1', [req.user.id]);
+  res.json({ two_factor: false });
 });
 
 module.exports = router;

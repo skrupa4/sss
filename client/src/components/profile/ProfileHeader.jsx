@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import { bannerStyle } from '../../utils/banner';
 import { formatRegDate } from '../../utils/format';
 import { clanPath, messagesPath, navigate, profilePath } from '../../utils/router';
 import Avatar from '../ui/Avatar';
@@ -62,7 +63,7 @@ export default function ProfileHeader({ profile, isOwn, achievementsCount, onCha
 
   return (
     <section className="overflow-hidden rounded-3xl border border-line bg-surface">
-      <div className="h-28 bg-gradient-to-br from-accent/30 via-accent-2/25 to-surface md:h-36" />
+      <div className={`h-28 md:h-36 ${profile.banner_color ? '' : 'bg-gradient-to-br from-accent/30 via-accent-2/25 to-surface'}`} style={bannerStyle(profile.banner_color)} />
       <div className="px-4 pb-5 md:px-7 md:pb-7">
         <div className="-mt-12 flex flex-col items-center gap-4 md:flex-row md:items-end md:justify-between">
           <AvatarUploader editable={isOwn} uploadPath="/api/users/me/avatar" hasImage={profile.avatar_version > 0} onChanged={applyOwn}>

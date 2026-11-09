@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import Avatar from '../ui/Avatar';
 import EmojiPicker from '../ui/EmojiPicker';
 import Icon from '../ui/Icons';
-import { fileToPhotoDataUrl } from '../../utils/image';
+import ImageCropper from '../ui/ImageCropper';
+import { ASPECTS } from '../../utils/aspects';
 import { insertAtCursor } from '../../utils/text';
 
 const MAX = 500;
@@ -14,7 +15,8 @@ export default function PostComposer({ onPublished }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [image, setImage] = useState(null); // data-URL выбранного фото
+  const [image, setImage] = useState(null); // data-URL выбранного фото (уже кадрированного)
+  const [cropFile, setCropFile] = useState(null);
   const ref = useRef(null);
   const fileRef = useRef(null);
 
@@ -34,16 +36,12 @@ export default function PostComposer({ onPublished }) {
     }
   };
 
-  const pickPhoto = async (e) => {
+  const pickPhoto = (e) => {
     const file = e.target.files?.[0];
     e.target.value = ''; // чтобы можно было выбрать тот же файл ещё раз
     if (!file) return;
     setError('');
-    try {
-      setImage(await fileToPhotoDataUrl(file));
-    } catch (err) {
-      setError(err.message);
-    }
+    setCropFile(file);
   };
 
   return (
@@ -61,6 +59,7 @@ export default function PostComposer({ onPublished }) {
           className="min-h-[72px] flex-1 resize-none bg-transparent py-1 text-[15px] text-ink outline-none max-md:text-base placeholder:text-faint"
         />
       </div>
+      {cropFile && <ImageCropper file={cropFile} aspects={ASPECTS.post} maxSide={1280} maxBytes={1_000_000} title="Кадр для поста" onDone={(url) => { setImage(url); setCropFile(null); }} onCancel={() => setCropFile(null)} />}
       {image && (
         <div className="relative mt-3 inline-block max-w-full">
           <img src={image} alt="Выбранное фото" className="max-h-64 max-w-full rounded-xl border border-line object-contain" />

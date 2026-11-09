@@ -7,6 +7,8 @@ const { HttpError } = require('../utils/errors');
 const { str, validateUsername, validateEmail, validatePassword } = require('../utils/validate');
 const { isReservedName } = require('../utils/reserved');
 const { mailEnabled, sendCode } = require('../services/mailer');
+const { emailCodesRequired } = require('../services/settings');
+const challenges = require('../services/challenges');
 const { makeCode, hashCode, codeMatches, TTL_MINUTES, MAX_ATTEMPTS, RESEND_COOLDOWN_SEC, MAX_SENDS_PER_HOUR } = require('../services/codes');
 
 const router = express.Router();
@@ -39,7 +41,7 @@ async function createUser(username, email, hash) {
 const session = async (id) => ({ token: signToken(id), user: await fetchUser(pool, 'id', id, { withEmail: true }) });
 
 // Нужно ли подтверждать почту кодом (зависит от того, настроена ли отправка писем).
-router.get('/register/config', (req, res) => res.json({ verify: mailEnabled() }));
+router.get('/register/config', async (req, res) => res.json({ verify: await emailCodesRequired(), mail: mailEnabled() }));
 
 router.post('/register', async (req, res) => {
   const username = validateUsername(req.body.username);
@@ -48,7 +50,7 @@ router.post('/register', async (req, res) => {
   const hash = await bcrypt.hash(password, 10);
 
   // Почта не настроена — регистрируем сразу, как раньше (сайт не должен «ломаться» без ключей).
-  if (!mailEnabled()) {
+  if (!(await emailCodesRequired())) {
     // created_at ставит сама БД (DEFAULT NOW()) — дата регистрации настоящая.
     return res.json(await session(await createUser(username, email, hash)));
   }
@@ -120,7 +122,7 @@ router.post('/login', async (req, res) => {
   if (!login || !password) throw new HttpError(400, 'Введите никнейм и пароль');
 
   const { rows } = await pool.query(
-    'SELECT id, password, is_banned FROM users WHERE username = $1 OR LOWER(email) = LOWER($1) LIMIT 1',
+    'SELECT id, password, is_banned, two_factor, email FROM users WHERE username = $1 OR LOWER(email) = LOWER($1) LIMIT 1',
     [login]
   );
   if (!rows.length) throw new HttpError(401, 'Пользователь не найден');
@@ -128,7 +130,28 @@ router.post('/login', async (req, res) => {
 
   if (rows[0].is_banned) throw new HttpError(403, 'Аккаунт заблокирован администратором');
 
-  res.json({ token: signToken(rows[0].id), user: await fetchUser(pool, 'id', rows[0].id, { withEmail: true }) });
+  if (rows[0].two_factor) {
+    if (mailEnabled()) {
+      // Пароль верен, но вход завершается только после кода из письма.
+      const ticket = await challenges.issue({ userId: rows[0].id, email: rows[0].email, purpose: 'login' });
+      return res.json({ needs2fa: true, ticket, email: challenges.maskEmail(rows[0].email) });
+    }
+    // Почта на сервере отключена — не запираем людей снаружи собственного аккаунта.
+    console.warn(`2FA пропущена для user ${rows[0].id}: отправка почты не настроена`);
+  }
+  res.json(await session(rows[0].id));
+});
+
+router.post('/login/2fa', async (req, res) => {
+  const userId = await challenges.check(req.body.ticket, req.body.code);
+  const banned = await pool.query('SELECT is_banned FROM users WHERE id = $1', [userId]);
+  if (!banned.rows.length || banned.rows[0].is_banned) throw new HttpError(403, 'Аккаунт заблокирован администратором');
+  res.json(await session(userId));
+});
+
+router.post('/login/2fa/resend', async (req, res) => {
+  await challenges.resend(req.body.ticket);
+  res.json({ success: true });
 });
 
 router.get('/me', requireAuth, async (req, res) => {

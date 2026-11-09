@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { api } from '../../api/client';
-import { fileToAvatarDataUrl } from '../../utils/image';
+import ImageCropper from '../ui/ImageCropper';
+import { ASPECTS } from '../../utils/aspects';
 import Icon from '../ui/Icons';
 
 /**
@@ -11,19 +12,18 @@ export default function AvatarUploader({ editable, uploadPath, hasImage, onChang
   const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [cropFile, setCropFile] = useState(null); // выбранный файл ждёт кадрирования
 
-  const upload = async (file) => {
-    if (!file) return;
+  const upload = async (image) => {
+    setCropFile(null);
     setBusy(true);
     setError('');
     try {
-      const image = await fileToAvatarDataUrl(file);
       onChanged(await api.post(uploadPath, { image }));
     } catch (err) {
       setError(err.message);
     } finally {
       setBusy(false);
-      if (inputRef.current) inputRef.current.value = '';
     }
   };
 
@@ -54,7 +54,8 @@ export default function AvatarUploader({ editable, uploadPath, hasImage, onChang
             {busy ? <span className="spinner !h-4 !w-4 !border-white/30 !border-t-white" /> : <Icon name="camera" className="h-4 w-4" />}
           </button>
         )}
-        <input ref={inputRef} type="file" accept="image/*" hidden onChange={(e) => upload(e.target.files?.[0])} />
+        <input ref={inputRef} type="file" accept="image/*" hidden onChange={(e) => { setCropFile(e.target.files?.[0] || null); e.target.value = ''; }} />
+        {cropFile && <ImageCropper file={cropFile} aspects={ASPECTS.avatar} round maxSide={512} maxBytes={380 * 1024} title="Фото профиля" onDone={upload} onCancel={() => setCropFile(null)} />}
       </div>
       {editable && hasImage && (
         <button type="button" onClick={remove} disabled={busy} className="text-xs text-muted transition-colors hover:text-accent">Удалить фото</button>

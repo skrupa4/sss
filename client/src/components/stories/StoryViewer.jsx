@@ -25,7 +25,7 @@ function StoryImage({ id }) {
 
   if (failed) return <div className="flex h-full items-center justify-center text-sm text-white/60">Не удалось загрузить</div>;
   if (!src) return <div className="flex h-full items-center justify-center"><div className="spinner" /></div>;
-  return <img src={src} alt="" className="h-full w-full select-none object-cover" draggable={false} />;
+  return <img src={src} alt="" className="h-full w-full select-none object-contain" draggable={false} />;
 }
 
 /**

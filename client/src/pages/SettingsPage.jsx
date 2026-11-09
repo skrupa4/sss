@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useRealtime } from '../context/RealtimeContext';
 import AccountSecurity from '../components/settings/AccountSecurity';
+import TwoFactor from '../components/settings/TwoFactor';
 import Icon from '../components/ui/Icons';
 import { useToasts } from '../context/ToastContext';
 import { THEMES, getThemePref, setThemePref } from '../utils/theme';
@@ -113,28 +113,17 @@ function Appearance() {
   );
 }
 
-function Shortcuts() {
+function Coins() {
   const { user } = useAuth();
-  const { counters } = useRealtime();
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <a href="#/coins" className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 transition-colors hover:bg-raised">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold/15 text-gold"><Icon name="coin" /></span>
-        <span className="min-w-0">
-          <span className="block text-sm text-muted">Монеты</span>
-          <span className="block text-xl font-extrabold tabular-nums">{(user.coins ?? 0).toLocaleString('ru-RU')}</span>
-        </span>
-        <span className="ml-auto text-sm font-semibold text-accent">Пополнить</span>
-      </a>
-      <a href="#/notifications" className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 transition-colors hover:bg-raised">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent"><Icon name="bell" /></span>
-        <span className="min-w-0">
-          <span className="block text-sm text-muted">Уведомления</span>
-          <span className="block text-base font-bold">{counters.notifications > 0 ? `${counters.notifications} новых` : 'Нет новых'}</span>
-        </span>
-        <span className="ml-auto text-sm font-semibold text-accent">Открыть</span>
-      </a>
-    </div>
+    <a href="#/coins" className="flex items-center gap-4 rounded-2xl border border-line bg-surface p-5 transition-colors hover:bg-raised">
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gold/15 text-gold"><Icon name="coin" className="h-6 w-6" /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm text-muted">Баланс монет</span>
+        <span className="block text-2xl font-extrabold leading-tight tabular-nums">{(user.coins ?? 0).toLocaleString('ru-RU')}</span>
+      </span>
+      <span className="shrink-0 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white">Пополнить</span>
+    </a>
   );
 }
 
@@ -142,9 +131,10 @@ export default function SettingsPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-extrabold tracking-tight">Настройки</h1>
-      <Shortcuts />
+      <Coins />
       <Appearance />
       <Notifications />
+      <TwoFactor />
       <AccountSecurity />
     </div>
   );

@@ -70,6 +70,10 @@ async function sendMail({ to, subject, html, text }) {
 const PURPOSES = {
   register: { subject: 'Код подтверждения SSS', lead: 'Ваш код для регистрации в SSS' },
   email: { subject: 'Подтвердите новую почту в SSS', lead: 'Код для смены почты в SSS' },
+  login: { subject: 'Код для входа в SSS', lead: 'Код для входа в аккаунт SSS' },
+  twofa: { subject: 'Включение двухфакторной защиты SSS', lead: 'Код для включения двухфакторной защиты в SSS' },
+  login: { subject: 'Код для входа в SSS', lead: 'Код для входа в SSS' },
+  twofa: { subject: 'Включение двухфакторной защиты SSS', lead: 'Код для включения двухфакторной защиты в SSS' },
 };
 
 function sendCode(to, code, purpose = 'register') {

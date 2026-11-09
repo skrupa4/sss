@@ -1,7 +1,7 @@
 const express = require('express');
 const { pool, withTransaction } = require('../db');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
-const { fetchUser } = require('../services/users');
+const { fetchUser, isPremiumUser } = require('../services/users');
 const { createNotification } = require('../services/notifications');
 const { HttpError } = require('../utils/errors');
 const { isReservedName } = require('../utils/reserved');
@@ -34,6 +34,14 @@ router.put('/me', requireAuth, async (req, res) => {
   const bio = validateBio(req.body.bio);
   const hideClanTag = typeof req.body.hide_clan_tag === 'boolean' ? req.body.hide_clan_tag : null; // null = не менять
   const userId = req.user.id;
+  // Цвет баннера: undefined = не менять, ''/null = сбросить, '#rrggbb' = задать (только Premium).
+  const bannerGiven = req.body.banner_color !== undefined;
+  let banner = null;
+  if (bannerGiven && req.body.banner_color) {
+    if (typeof req.body.banner_color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(req.body.banner_color)) throw new HttpError(400, 'Цвет должен быть вида #rrggbb');
+    if (!(await isPremiumUser(pool, userId))) throw new HttpError(403, 'Свой цвет баннера доступен с Premium');
+    banner = req.body.banner_color.toLowerCase();
+  }
   if (!req.user.is_admin && (isReservedName(username) || isReservedName(handle))) {
     throw new HttpError(400, 'Это имя зарезервировано');
   }
@@ -53,7 +61,7 @@ router.put('/me', requireAuth, async (req, res) => {
         if (taken.rows.length) throw new HttpError(400, 'Такой хэндл уже занят');
       }
 
-      await db.query('UPDATE users SET username = $1, handle = $2, bio = $3, hide_clan_tag = COALESCE($5::boolean, hide_clan_tag) WHERE id = $4', [username, handle, bio, userId, hideClanTag]);
+      await db.query('UPDATE users SET username = $1, handle = $2, bio = $3, hide_clan_tag = COALESCE($5::boolean, hide_clan_tag), banner_color = CASE WHEN $6::boolean THEN $7 ELSE banner_color END WHERE id = $4', [username, handle, bio, userId, hideClanTag, bannerGiven, banner]);
 
       if (username !== current.username) {
         for (const [table, column] of USERNAME_REFS) {

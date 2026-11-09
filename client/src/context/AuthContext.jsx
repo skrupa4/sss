@@ -31,7 +31,7 @@ export function AuthProvider({ children }) {
 
   const authenticate = useCallback(async (endpoint, payload) => {
     const data = await api.post(endpoint, payload);
-    if (data.needsCode) return data; // нужно подтвердить почту кодом — токена ещё нет
+    if (data.needsCode || data.needs2fa) return data; // нужен код из письма — токена ещё нет
     tokenStore.set(data.token);
     setUser(data.user);
     return data;
@@ -44,6 +44,8 @@ export function AuthProvider({ children }) {
     register: (username, email, password) => authenticate('/api/register', { username, email, password }),
     verifyRegistration: (email, code) => authenticate('/api/register/verify', { email, code }),
     resendCode: (email) => api.post('/api/register/resend', { email }),
+    verifyLogin: (ticket, code) => authenticate('/api/login/2fa', { ticket, code }),
+    resendLoginCode: (ticket) => api.post('/api/login/2fa/resend', { ticket }),
     logout,
     updateUser: setUser,
   }), [user, booting, authenticate, logout]);

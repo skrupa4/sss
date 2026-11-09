@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { api } from '../../api/client';
-import { fileToStoryDataUrl } from '../../utils/image';
+import ImageCropper from '../ui/ImageCropper';
+import { ASPECTS } from '../../utils/aspects';
 import Icon from '../ui/Icons';
 import Modal from '../ui/Modal';
 
@@ -10,19 +11,10 @@ export default function StoryComposer({ open, onClose, onPublished }) {
   const [caption, setCaption] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [cropFile, setCropFile] = useState(null);
 
   const reset = () => { setImage(null); setCaption(''); setError(''); setBusy(false); };
   const close = () => { onClose(); setTimeout(reset, 250); };
-
-  const pick = async (file) => {
-    if (!file) return;
-    setError('');
-    try {
-      setImage(await fileToStoryDataUrl(file));
-    } catch (err) {
-      setError(err.message);
-    }
-  };
 
   const publish = async () => {
     setBusy(true);
@@ -43,22 +35,23 @@ export default function StoryComposer({ open, onClose, onPublished }) {
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="group relative aspect-[9/16] w-48 overflow-hidden rounded-2xl border border-dashed border-ink/20 bg-raised transition-colors hover:border-accent/60"
+          className="group relative aspect-[9/16] w-48 overflow-hidden rounded-2xl border border-dashed border-ink/20 bg-black/80 transition-colors hover:border-accent/60"
           aria-label="Выбрать картинку"
         >
           {image ? (
             <>
-              <img src={image} alt="Предпросмотр" className="h-full w-full object-cover" />
+              <img src={image} alt="Предпросмотр" className="h-full w-full object-contain" />
               {caption && <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-3 pb-3 pt-8 text-left text-xs font-medium text-white">{caption}</span>}
             </>
           ) : (
             <span className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center text-sm text-muted transition-colors group-hover:text-ink">
               <Icon name="camera" className="h-8 w-8" />
-              Выберите картинку. Она будет обрезана до вертикального формата.
+              Выберите картинку и подберите кадр: вертикальный, 4:5, квадрат или оригинал.
             </span>
           )}
         </button>
-        <input ref={inputRef} type="file" accept="image/*" hidden onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />
+        <input ref={inputRef} type="file" accept="image/*" hidden onChange={(e) => { setCropFile(e.target.files?.[0] || null); e.target.value = ''; }} />
+        {cropFile && <ImageCropper file={cropFile} aspects={ASPECTS.story} maxSide={1280} maxBytes={650 * 1024} title="Кадр для сторис" onDone={(url) => { setImage(url); setCropFile(null); }} onCancel={() => setCropFile(null)} />}
 
         <label className="block w-full text-sm">
           <span className="mb-1.5 flex justify-between text-muted"><span>Подпись</span><span>{caption.length}/120</span></span>

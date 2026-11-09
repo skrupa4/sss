@@ -9,6 +9,8 @@ initSocket(server, config.corsOrigin);
 
 initDB().finally(() => {
   server.listen(config.PORT, () => console.log(`СЕРВЕР ЗАПУЩЕН НА ПОРТУ ${config.PORT}`));
+  // Старые сообщения шифруем в фоне: пока идёт работа, читаются оба формата.
+  require('./src/services/messageCrypto').encryptExistingMessages().catch((err) => console.error('Шифрование старых сообщений:', err.message));
 });
 
 // Раз в час удаляем сторис, истёкшие больше суток назад.

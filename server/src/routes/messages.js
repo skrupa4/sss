@@ -7,6 +7,7 @@ const { validateText } = require('../utils/validate');
 const { nickColumns } = require('../services/users');
 const { checkAchievements } = require('../services/achievements');
 const { sendPushToUsername } = require('../services/push');
+const { encryptText, decryptText, withPlainText } = require('../services/messageCrypto');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -22,9 +23,10 @@ router.post('/', async (req, res) => {
 
   const { rows } = await pool.query(
     'INSERT INTO messages (sender, receiver, content, is_read) VALUES ($1, $2, $3, false) RETURNING *',
-    [sender, receiver, content]
+    [sender, receiver, await encryptText(content)]
   );
-  const message = rows[0];
+  // В базе шифртекст, а участникам чата отдаём обычный текст.
+  const message = { ...rows[0], content };
 
   // Получателю — мгновенно, отправителю — для его других вкладок/устройств.
   await emitToUsername(receiver, 'message:new', message);
@@ -48,7 +50,7 @@ router.get('/history', async (req, res) => {
      ORDER BY created_at ASC, id ASC LIMIT 500`,
     [me, other]
   );
-  res.json(rows);
+  res.json(await Promise.all(rows.map((r) => withPlainText(r))));
 });
 
 router.get('/chats', async (req, res) => {
@@ -57,12 +59,12 @@ router.get('/chats', async (req, res) => {
     `WITH last_messages AS (
        SELECT DISTINCT ON (CASE WHEN sender = $1 THEN receiver ELSE sender END)
               CASE WHEN sender = $1 THEN receiver ELSE sender END AS chat_user,
-              content, created_at
+              content, created_at, sender AS last_sender
        FROM messages
        WHERE sender = $1 OR receiver = $1
        ORDER BY CASE WHEN sender = $1 THEN receiver ELSE sender END, created_at DESC, id DESC
      )
-     SELECT lm.chat_user AS username, lm.content AS last_message, lm.created_at,
+     SELECT lm.chat_user AS username, lm.content AS last_message, lm.last_sender, lm.created_at,
             u.handle, u.is_verified, u.avatar_version, ${nickColumns('u')},
             (SELECT COUNT(*)::int FROM messages m
                WHERE m.receiver = $1 AND m.sender = lm.chat_user AND m.is_read = false) AS unread
@@ -71,7 +73,7 @@ router.get('/chats', async (req, res) => {
      ORDER BY lm.created_at DESC`,
     [me]
   );
-  res.json(rows);
+  res.json(await Promise.all(rows.map(async (r) => ({ ...r, last_message: await decryptText(r.last_message) }))));
 });
 
 router.post('/read', async (req, res) => {
@@ -82,6 +84,7 @@ router.post('/read', async (req, res) => {
     [me, chatUser]
   );
   await pushCounters(me);
+  emitToUsername(chatUser, 'messages:read', { by: me }); // у отправителя появится двойная галочка
   res.json({ success: true });
 });
 

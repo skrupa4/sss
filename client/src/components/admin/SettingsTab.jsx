@@ -49,6 +49,41 @@ function TrialSettings() {
   );
 }
 
+function EmailCodes() {
+  const { push } = useToasts();
+  const { data, loading, error, reload, setData } = useAsync(() => api.get('/api/admin/settings'), []);
+  const [busy, setBusy] = useState(false);
+
+  if (loading && !data) return <Spinner />;
+  if (error && !data) return <ErrorState error={error} onRetry={reload} />;
+
+  const toggle = async (value) => {
+    setBusy(true);
+    try {
+      setData(await api.put('/api/admin/settings', { email_codes_enabled: value }));
+      push({ type: 'success', title: value ? 'Коды на почту включены' : 'Коды на почту отключены' });
+    } catch (err) {
+      push({ type: 'error', title: 'Не сохранилось', body: err.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-line bg-surface p-5">
+      <h2 className="text-lg font-bold tracking-tight">Подтверждение кодом из письма</h2>
+      <p className="mt-1 text-sm text-muted">При регистрации и смене почты просим ввести 6-значный код. Двухфакторную защиту при входе пользователи включают сами, это переключатель на неё не влияет.</p>
+      {!data.mail_configured && (
+        <p className="mt-3 rounded-xl bg-raised px-4 py-3 text-sm text-muted">Отправка почты на сервере не настроена, поэтому коды сейчас не запрашиваются вне зависимости от переключателя. Как подключить, написано в readme.</p>
+      )}
+      <label className="mt-4 flex items-center gap-3 text-sm">
+        <input type="checkbox" className="h-4 w-4 accent-[#ff2a5f]" checked={data.email_codes_enabled} disabled={busy} onChange={(e) => toggle(e.target.checked)} />
+        Требовать код при регистрации и смене почты
+      </label>
+    </section>
+  );
+}
+
 function Announce() {
   const { push } = useToasts();
   const [text, setText] = useState('');
@@ -85,6 +120,7 @@ function Announce() {
 export default function SettingsTab() {
   return (
     <div className="flex flex-col gap-3">
+      <EmailCodes />
       <TrialSettings />
       <Announce />
     </div>

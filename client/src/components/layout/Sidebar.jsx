@@ -45,7 +45,7 @@ export default function Sidebar() {
   const ownProfile = page === 'profile' && (param || user.username) === user.username;
 
   return (
-    <aside className="safe-bottom fixed inset-x-0 bottom-0 z-50 border-t border-line bg-surface/95 p-2 backdrop-blur lg:sticky lg:top-6 lg:h-fit lg:w-60 lg:shrink-0 lg:rounded-3xl lg:border lg:p-4">
+    <aside className="safe-bottom fixed inset-x-0 bottom-0 z-50 border-t border-line bg-surface/95 p-2 backdrop-blur lg:sticky lg:top-6 lg:h-fit lg:max-h-[calc(100dvh-3rem)] lg:w-64 lg:shrink-0 lg:overflow-y-auto lg:rounded-3xl lg:border lg:p-4">
       <a href="#/feed" className="hidden items-center justify-between px-3 py-3 lg:flex">
         <Logo />
         <span className={`h-2 w-2 rounded-full ${connected ? 'bg-ok' : 'bg-faint'}`} title={connected ? 'Онлайн: всё приходит мгновенно' : 'Подключение…'} />
@@ -55,24 +55,26 @@ export default function Sidebar() {
         <NavItem href="/feed" icon="feed" label="Лента" active={page === 'feed'} />
         <NavItem href="/following" icon="users" label="Подписки" active={page === 'following'} />
         <NavItem href="/messages" icon="chat" label="Сообщения" active={page === 'messages'} badge={counters.messages} />
+        <NavItem href="/notifications" icon="bell" label="Уведомления" active={page === 'notifications'} badge={counters.notifications} />
         <NavItem href="/clans" icon="clans" label="Кланы" active={page === 'clans'} mobileHidden />
         <NavItem href={profilePath(user.username)} icon="user" label="Профиль" active={ownProfile} mobileHidden />
         <NavItem href="/premium" icon="crown" label="Premium" active={page === 'premium'} mobileHidden />
-        <NavItem href="/settings" icon="settings" label="Настройки" active={['settings', 'notifications', 'coins'].includes(page)} badge={counters.notifications} mobileHidden />
+        <NavItem href="/settings" icon="settings" label="Настройки" active={['settings', 'coins'].includes(page)} mobileHidden />
         {user.is_admin && <NavItem href="/admin" icon="shield" label="Админ-панель" active={page === 'admin'} mobileHidden />}
-        <button type="button" onClick={() => setMenuOpen(true)} className="relative flex flex-1 items-center justify-center rounded-xl p-3 text-muted hover:bg-ink/[0.04] hover:text-ink lg:hidden" aria-label="Ещё">
+        <button type="button" onClick={() => setMenuOpen(true)} className="flex flex-1 items-center justify-center rounded-xl p-3 text-muted hover:bg-ink/[0.04] hover:text-ink lg:hidden" aria-label="Ещё">
           <Icon name="menu" />
-          {counters.notifications > 0 && <span className="absolute right-[calc(50%-18px)] top-2 h-2.5 w-2.5 rounded-full bg-accent" aria-label="Есть новые уведомления" />}
         </button>
       </nav>
 
-      <div className="mt-6 hidden items-center gap-3 border-t border-line px-2 pt-4 lg:flex">
-        <Avatar username={user.username} version={user.avatar_version} size={36} />
-        <div className="min-w-0 flex-1">
+      <div className="mt-4 hidden items-center gap-3 rounded-2xl bg-ink/[0.04] p-2.5 lg:flex">
+        <a href={`#${profilePath(user.username)}`} className="shrink-0" aria-label="Мой профиль">
+          <Avatar username={user.username} version={user.avatar_version} size={40} />
+        </a>
+        <div className="min-w-0 flex-1 leading-tight">
           <p className="truncate text-sm font-semibold"><Nick name={user.username} color={user.nick_color} premium={user.is_premium} /></p>
-          <p className="truncate text-xs text-muted">@{user.handle}</p>
+          <p className="mt-1 truncate text-xs text-muted">@{user.handle}</p>
         </div>
-        <button type="button" onClick={logout} className="rounded-lg p-2 text-muted transition-colors hover:bg-ink/[0.06] hover:text-accent" aria-label="Выйти" title="Выйти">
+        <button type="button" onClick={logout} className="shrink-0 rounded-xl p-2 text-muted transition-colors hover:bg-ink/[0.08] hover:text-accent" aria-label="Выйти" title="Выйти">
           <Icon name="logout" className="h-[18px] w-[18px]" />
         </button>
       </div>
@@ -83,7 +85,7 @@ export default function Sidebar() {
           <SheetLink href={profilePath(user.username)} icon="user" label="Мой профиль" onClick={() => setMenuOpen(false)} />
           <SheetLink href="/clans" icon="clans" label="Кланы" onClick={() => setMenuOpen(false)} />
           <SheetLink href="/premium" icon="crown" label="Premium" onClick={() => setMenuOpen(false)} />
-          <SheetLink href="/settings" icon="settings" label={counters.notifications > 0 ? `Настройки · ${counters.notifications} новых` : 'Настройки'} onClick={() => setMenuOpen(false)} />
+          <SheetLink href="/settings" icon="settings" label="Настройки" onClick={() => setMenuOpen(false)} />
           {user.is_admin && <SheetLink href="/admin" icon="shield" label="Админ-панель" onClick={() => setMenuOpen(false)} />}
           <button type="button" onClick={() => { setMenuOpen(false); logout(); }} className="flex items-center gap-3 rounded-xl px-3 py-3.5 text-left text-[15px] font-semibold text-accent transition-colors hover:bg-accent/10">
             <Icon name="logout" className="h-5 w-5" /> Выйти

@@ -209,6 +209,16 @@ const MIGRATIONS = [
      created_at TIMESTAMPTZ DEFAULT NOW()
    )`,
   `CREATE INDEX IF NOT EXISTS push_outbox_sub_idx ON push_outbox (sub_id, id)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS banner_color TEXT`,
+  `CREATE TABLE IF NOT EXISTS login_challenges (
+     id TEXT PRIMARY KEY,
+     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     code_hash TEXT NOT NULL,
+     expires_at TIMESTAMPTZ NOT NULL,
+     attempts INTEGER NOT NULL DEFAULT 0,
+     last_sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   )`,
   `CREATE TABLE IF NOT EXISTS pending_registrations (
      email TEXT PRIMARY KEY,
      username TEXT NOT NULL,

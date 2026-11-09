@@ -248,6 +248,7 @@ router.get('/settings', async (req, res) => {
 router.put('/settings', async (req, res) => {
   const patch = {};
   if (typeof req.body.premium_trial_enabled === 'boolean') patch.premium_trial_enabled = req.body.premium_trial_enabled;
+  if (typeof req.body.email_codes_enabled === 'boolean') patch.email_codes_enabled = req.body.email_codes_enabled;
   if (req.body.premium_trial_days !== undefined) {
     const days = Number(req.body.premium_trial_days);
     if (!Number.isInteger(days) || days < 1 || days > 365) throw new HttpError(400, 'Срок пробного периода: от 1 до 365 дней');

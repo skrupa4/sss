@@ -31,8 +31,10 @@ export function AuthProvider({ children }) {
 
   const authenticate = useCallback(async (endpoint, payload) => {
     const data = await api.post(endpoint, payload);
+    if (data.needsCode) return data; // нужно подтвердить почту кодом — токена ещё нет
     tokenStore.set(data.token);
     setUser(data.user);
+    return data;
   }, []);
 
   const value = useMemo(() => ({
@@ -40,6 +42,8 @@ export function AuthProvider({ children }) {
     booting,
     login: (username, password) => authenticate('/api/login', { username, password }),
     register: (username, email, password) => authenticate('/api/register', { username, email, password }),
+    verifyRegistration: (email, code) => authenticate('/api/register/verify', { email, code }),
+    resendCode: (email) => api.post('/api/register/resend', { email }),
     logout,
     updateUser: setUser,
   }), [user, booting, authenticate, logout]);

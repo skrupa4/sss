@@ -58,5 +58,12 @@ module.exports = {
   adminNames,
   // Приём платежей (ЮKassa). Без этих ключей покупка монет отключена.
   yookassa: { shopId: env.YOOKASSA_SHOP_ID || '', secretKey: env.YOOKASSA_SECRET_KEY || '', apiUrl: env.YOOKASSA_API_URL || 'https://api.yookassa.ru/v3' },
+  // Почта для кодов подтверждения. Нужен ключ ОДНОГО из сервисов (HTTP API: у Render free SMTP закрыт).
+  mail: {
+    brevoKey: env.BREVO_API_KEY || '',
+    resendKey: env.RESEND_API_KEY || '',
+    from: env.MAIL_FROM || '',
+    fromName: env.MAIL_FROM_NAME || 'SSS',
+  },
   corsOrigin: origins.length ? origins : true,
 };

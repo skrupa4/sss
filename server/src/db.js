@@ -209,6 +209,25 @@ const MIGRATIONS = [
      created_at TIMESTAMPTZ DEFAULT NOW()
    )`,
   `CREATE INDEX IF NOT EXISTS push_outbox_sub_idx ON push_outbox (sub_id, id)`,
+  `CREATE TABLE IF NOT EXISTS pending_registrations (
+     email TEXT PRIMARY KEY,
+     username TEXT NOT NULL,
+     password_hash TEXT NOT NULL,
+     code_hash TEXT NOT NULL,
+     expires_at TIMESTAMPTZ NOT NULL,
+     attempts INTEGER NOT NULL DEFAULT 0,
+     sent_count INTEGER NOT NULL DEFAULT 1,
+     window_start TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     last_sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   )`,
+  `CREATE TABLE IF NOT EXISTS email_changes (
+     user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+     new_email TEXT NOT NULL,
+     code_hash TEXT NOT NULL,
+     expires_at TIMESTAMPTZ NOT NULL,
+     attempts INTEGER NOT NULL DEFAULT 0,
+     last_sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   )`,
   `CREATE TABLE IF NOT EXISTS coin_orders (
      id SERIAL PRIMARY KEY,
      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,

@@ -28,7 +28,7 @@ export default function PushPrompt() {
     setBusy(true);
     try {
       const result = await enablePush();
-      if (result === 'granted') push({ type: 'info', emoji: '🔔', title: 'Уведомления включены', body: 'Сообщения и новости будут приходить и на телефон.' });
+      if (result === 'granted') push({ type: 'info', emoji: '🔔', title: 'Уведомления включены', body: 'Сообщения и новости будут приходить и когда сайт закрыт.' });
       else if (result === 'denied') push({ type: 'info', emoji: '🔕', title: 'Уведомления заблокированы', body: 'Разрешить их можно в настройках браузера для этого сайта.' });
     } catch (err) {
       push({ type: 'info', emoji: '⚠️', title: 'Не получилось включить', body: err.message });
@@ -45,7 +45,7 @@ export default function PushPrompt() {
         <div className="min-w-0 flex-1">
           <p className="font-semibold">Включить уведомления?</p>
           {mode === 'ask' ? (
-            <p className="mt-0.5 text-sm text-muted">Сообщения, лайки и подарки будут приходить на телефон, даже когда сайт закрыт.</p>
+            <p className="mt-0.5 text-sm text-muted">Сообщения, лайки и подарки будут приходить на это устройство, даже когда сайт закрыт.</p>
           ) : (
             <p className="mt-0.5 text-sm text-muted">На iPhone уведомления работают, если добавить сайт на экран «Домой»: нажмите «Поделиться» → «На экран “Домой”», затем откройте SSS с иконки и включите уведомления в настройках.</p>
           )}

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
+import AccountSecurity from '../components/settings/AccountSecurity';
+import Icon from '../components/ui/Icons';
 import { useToasts } from '../context/ToastContext';
 import { THEMES, getThemePref, setThemePref } from '../utils/theme';
 import { currentSubscription, disablePush, enablePush, needsInstall, pushSupported } from '../utils/push';
-import { profilePath } from '../utils/router';
 
 function Switch({ checked, onChange, disabled, label }) {
   return (
@@ -64,8 +66,8 @@ function Notifications() {
 
   return (
     <section className="rounded-2xl border border-line bg-surface p-5">
-      <h2 className="text-lg font-bold tracking-tight">Уведомления на телефон</h2>
-      <p className="mt-1 text-sm text-muted">Сообщения, лайки, подарки и объявления приходят на устройство, даже когда сайт закрыт.</p>
+      <h2 className="text-lg font-bold tracking-tight">Push-уведомления</h2>
+      <p className="mt-1 text-sm text-muted">Сообщения, лайки, подарки и объявления приходят на это устройство, даже когда сайт закрыт.</p>
       {notes[state] ? (
         <p className="mt-4 rounded-xl bg-raised px-4 py-3 text-sm text-muted">{notes[state]}</p>
       ) : (
@@ -111,20 +113,39 @@ function Appearance() {
   );
 }
 
+function Shortcuts() {
+  const { user } = useAuth();
+  const { counters } = useRealtime();
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <a href="#/coins" className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 transition-colors hover:bg-raised">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold/15 text-gold"><Icon name="coin" /></span>
+        <span className="min-w-0">
+          <span className="block text-sm text-muted">Монеты</span>
+          <span className="block text-xl font-extrabold tabular-nums">{(user.coins ?? 0).toLocaleString('ru-RU')}</span>
+        </span>
+        <span className="ml-auto text-sm font-semibold text-accent">Пополнить</span>
+      </a>
+      <a href="#/notifications" className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 transition-colors hover:bg-raised">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent"><Icon name="bell" /></span>
+        <span className="min-w-0">
+          <span className="block text-sm text-muted">Уведомления</span>
+          <span className="block text-base font-bold">{counters.notifications > 0 ? `${counters.notifications} новых` : 'Нет новых'}</span>
+        </span>
+        <span className="ml-auto text-sm font-semibold text-accent">Открыть</span>
+      </a>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
-  const { user, logout } = useAuth();
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-extrabold tracking-tight">Настройки</h1>
+      <Shortcuts />
       <Appearance />
       <Notifications />
-      <section className="rounded-2xl border border-line bg-surface p-5">
-        <h2 className="text-lg font-bold tracking-tight">Аккаунт</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <a href={`#${profilePath(user.username)}`} className="rounded-xl border border-line px-4 py-2 text-sm font-semibold hover:bg-ink/[0.06]">Изменить профиль и тег клана</a>
-          <button type="button" onClick={logout} className="rounded-xl border border-line px-4 py-2 text-sm font-semibold text-accent hover:bg-accent/10">Выйти</button>
-        </div>
-      </section>
+      <AccountSecurity />
     </div>
   );
 }

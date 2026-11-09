@@ -5,7 +5,7 @@ const COLORS = { dark: '#0a0a0e', light: '#f3f3f7' };
 export const THEMES = [
   { id: 'dark', label: 'Тёмная', hint: 'Мягко для глаз вечером' },
   { id: 'light', label: 'Светлая', hint: 'Яркая и контрастная' },
-  { id: 'system', label: 'Как в системе', hint: 'Следует настройке телефона' },
+  { id: 'system', label: 'Как в системе', hint: 'Следует настройке устройства' },
 ];
 
 export function getThemePref() {

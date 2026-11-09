@@ -24,6 +24,7 @@ app.use('/api/gifts', require('./routes/gifts'));
 app.use('/api/coins', require('./routes/coins'));
 app.use('/api/verification', require('./routes/verification'));
 app.use('/api/push', require('./routes/push'));
+app.use('/api/account', require('./routes/account'));
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Маршрут не найден' }));
 

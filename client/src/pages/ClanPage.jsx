@@ -106,7 +106,7 @@ export default function ClanPage({ id }) {
               </button>
             )}
             {isOwner && (
-              <button type="button" onClick={() => setEditing(true)} className="flex items-center gap-2 rounded-xl border border-line bg-white/[0.04] px-4 py-2 text-sm font-semibold transition-colors hover:bg-white/10">
+              <button type="button" onClick={() => setEditing(true)} className="flex items-center gap-2 rounded-xl border border-line bg-ink/[0.04] px-4 py-2 text-sm font-semibold transition-colors hover:bg-ink/10">
                 <Icon name="edit" className="h-4 w-4" /> Изменить
               </button>
             )}
@@ -153,7 +153,7 @@ export default function ClanPage({ id }) {
                 </span>
               )}
               {isOwner && m.role !== 'owner' && (
-                <button type="button" disabled={busy} onClick={() => kick(m)} className="rounded-lg p-2 text-faint transition-colors hover:bg-white/[0.06] hover:text-accent" aria-label={`Исключить ${m.username}`} title="Исключить">
+                <button type="button" disabled={busy} onClick={() => kick(m)} className="rounded-lg p-2 text-faint transition-colors hover:bg-ink/[0.06] hover:text-accent" aria-label={`Исключить ${m.username}`} title="Исключить">
                   <Icon name="close" className="h-4 w-4" />
                 </button>
               )}

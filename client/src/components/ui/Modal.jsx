@@ -57,11 +57,11 @@ export default function Modal({ open, onClose, title, children, size = 'md', pad
         data-state={state}
         className={`modal-panel relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-line bg-surface shadow-2xl shadow-black/60 outline-none md:rounded-3xl ${SIZES[size]}`}
       >
-        <div className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-white/15 md:hidden" aria-hidden="true" />
+        <div className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-ink/15 md:hidden" aria-hidden="true" />
         {title && (
           <header className="flex shrink-0 items-center justify-between gap-3 px-5 pb-2 pt-4 md:pt-5">
             <h2 className="text-lg font-bold tracking-tight">{title}</h2>
-            <button type="button" onClick={onClose} aria-label="Закрыть" className="rounded-xl p-2 text-muted transition-colors hover:bg-white/[0.06] hover:text-ink">
+            <button type="button" onClick={onClose} aria-label="Закрыть" className="rounded-xl p-2 text-muted transition-colors hover:bg-ink/[0.06] hover:text-ink">
               <Icon name="close" className="h-5 w-5" />
             </button>
           </header>

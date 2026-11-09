@@ -69,11 +69,11 @@ export default function PremiumPage() {
               {status.is_admin && !status.until ? 'Premium включён навсегда' : `Premium активен до ${formatDate(status.until)}`}
             </p>
           ) : status.trial_enabled && !status.trial_used ? (
-            <button type="button" onClick={activate} disabled={busy} className="rounded-xl bg-white px-6 py-3 text-sm font-bold text-bg transition hover:scale-[1.02] hover:bg-amber-50 disabled:opacity-60">
+            <button type="button" onClick={activate} disabled={busy} className="rounded-xl bg-ink px-6 py-3 text-sm font-bold text-bg transition hover:scale-[1.02] hover:opacity-90 disabled:opacity-60">
               {busy ? 'Активируем…' : `Попробовать бесплатно ${status.trial_days} дней`}
             </button>
           ) : (
-            <p className="rounded-xl bg-white/[0.06] px-4 py-2.5 text-sm text-muted">
+            <p className="rounded-xl bg-ink/[0.06] px-4 py-2.5 text-sm text-muted">
               {status.trial_used ? 'Пробный период уже использован.' : 'Пробный период сейчас недоступен.'}
             </p>
           )}
@@ -108,7 +108,7 @@ export default function PremiumPage() {
                 type="button"
                 onClick={() => saveColor(`preset:${id}`)}
                 aria-pressed={selected}
-                className={`rounded-xl border px-3 py-3 text-sm font-semibold transition-all ${selected ? 'border-accent bg-accent/10' : 'border-line hover:border-white/25'}`}
+                className={`rounded-xl border px-3 py-3 text-sm font-semibold transition-all ${selected ? 'border-accent bg-accent/10' : 'border-line hover:border-ink/25'}`}
               >
                 <Nick name={preset.label} color={`preset:${id}`} premium />
               </button>
@@ -121,7 +121,7 @@ export default function PremiumPage() {
             Свой цвет
             <input type="color" value={custom} onChange={(e) => setCustom(e.target.value)} className="h-10 w-14 cursor-pointer rounded-lg border border-line bg-raised p-1" />
           </label>
-          <button type="button" onClick={() => saveColor(custom)} className="rounded-xl border border-line px-4 py-2 text-sm font-semibold transition-colors hover:bg-white/[0.06]">Применить</button>
+          <button type="button" onClick={() => saveColor(custom)} className="rounded-xl border border-line px-4 py-2 text-sm font-semibold transition-colors hover:bg-ink/[0.06]">Применить</button>
           {status.nick_color && (
             <button type="button" onClick={() => saveColor(null)} className="flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-accent">
               <Icon name="close" className="h-4 w-4" /> Сбросить

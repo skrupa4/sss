@@ -12,7 +12,7 @@ function AchievementRow({ item }) {
         <div className="flex flex-wrap items-center gap-x-2">
           <p className={`text-sm font-semibold ${item.unlocked ? 'text-ink' : 'text-muted'}`}>{item.title}</p>
           <span className={`text-[11px] font-medium ${tier.text}`}>{tier.label}</span>
-          {item.reward > 0 && <span className="text-[11px] font-medium text-amber-300">+{item.reward} 🪙</span>}
+          {item.reward > 0 && <span className="text-[11px] font-medium text-gold">+{item.reward} 🪙</span>}
         </div>
         <p className="text-[13px] text-muted">{item.description}</p>
         {item.unlocked ? (
@@ -20,7 +20,7 @@ function AchievementRow({ item }) {
         ) : (
           item.target > 1 && (
             <div className="mt-1.5 flex items-center gap-2">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink/10">
                 <div className="h-full rounded-full bg-gradient-to-r from-accent to-accent-2 transition-[width] duration-700" style={{ width: `${percent}%` }} />
               </div>
               <span className="text-xs tabular-nums text-muted">{item.progress}/{item.target}</span>
@@ -48,12 +48,12 @@ export default function AchievementsCard({ data, isOwn }) {
           <h2 className="text-lg font-bold tracking-tight">Достижения</h2>
           <p className="text-sm text-muted">Получено {data.unlocked} из {data.total}</p>
         </div>
-        <button type="button" onClick={() => setOpen(true)} className="rounded-xl border border-line px-3.5 py-2 text-sm font-semibold transition-colors hover:bg-white/[0.06]">
+        <button type="button" onClick={() => setOpen(true)} className="rounded-xl border border-line px-3.5 py-2 text-sm font-semibold transition-colors hover:bg-ink/[0.06]">
           Все достижения
         </button>
       </div>
 
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-ink/10" aria-hidden="true">
         <div className="h-full rounded-full bg-gradient-to-r from-accent to-accent-2 transition-[width] duration-700" style={{ width: `${(data.unlocked / data.total) * 100}%` }} />
       </div>
 

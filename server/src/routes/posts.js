@@ -4,7 +4,7 @@ const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { createNotification } = require('../services/notifications');
 const { broadcast } = require('../services/realtime');
 const { HttpError } = require('../utils/errors');
-const { validateText } = require('../utils/validate');
+const { validateText, str } = require('../utils/validate');
 const { nickColumns } = require('../services/users');
 const { checkByUsername } = require('../services/achievements');
 
@@ -14,7 +14,8 @@ const router = express.Router();
 const POST_SELECT = `
   SELECT p.*, u.is_verified, u.avatar_version, ${nickColumns('u')}, CASE WHEN u.hide_clan_tag THEN NULL ELSE c.tag END AS clan_tag,
     EXISTS (SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.username = $1) AS liked_by_me,
-    EXISTS (SELECT 1 FROM reposts rp WHERE rp.post_id = p.id AND rp.username = $1) AS reposted_by_me
+    EXISTS (SELECT 1 FROM reposts rp WHERE rp.post_id = p.id AND rp.username = $1) AS reposted_by_me,
+    EXISTS (SELECT 1 FROM post_images pi WHERE pi.post_id = p.id) AS has_image
   FROM posts p
   LEFT JOIN users u ON u.username = p.username
   LEFT JOIN clan_members cm ON cm.user_id = u.id
@@ -64,17 +65,47 @@ router.get('/reposts/:username', optionalAuth, async (req, res) => {
 });
 
 // ---------- Создание / удаление ----------
-router.post('/', requireAuth, async (req, res) => {
-  const content = validateText(req.body.content, { max: 500, field: 'Пост' });
-  const inserted = await pool.query('INSERT INTO posts (username, content) VALUES ($1, $2) RETURNING id', [
-    req.user.username,
-    content,
-  ]);
+const IMAGE_RE = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/;
+const MAX_IMAGE_BYTES = 1_200_000;
+const SIGNATURES = {
+  'image/png': (b) => b.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47])),
+  'image/jpeg': (b) => b.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])),
+  'image/webp': (b) => b.subarray(0, 4).toString() === 'RIFF' && b.subarray(8, 12).toString() === 'WEBP',
+};
 
-  const post = await getPost(pool, inserted.rows[0].id, req.user.username);
+function parseImage(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const match = IMAGE_RE.exec(typeof value === 'string' ? value : '');
+  if (!match) throw new HttpError(400, 'Фото должно быть PNG, JPEG или WebP');
+  const data = Buffer.from(match[2], 'base64');
+  if (!data.length || data.length > MAX_IMAGE_BYTES) throw new HttpError(400, 'Фото слишком большое (максимум ~1 МБ)');
+  // Тип из data-URL ничего не гарантирует — сверяем с реальными первыми байтами файла.
+  if (!SIGNATURES[match[1]](data)) throw new HttpError(400, 'Файл не похож на изображение');
+  return { mime: match[1], data };
+}
+
+router.post('/', requireAuth, async (req, res) => {
+  const image = parseImage(req.body.image);
+  // С фото подпись необязательна, без фото — текст обязателен.
+  const content = image && !str(req.body.content) ? '' : validateText(req.body.content, { max: 500, field: 'Пост' });
+  const id = await withTransaction(async (db) => {
+    const inserted = await db.query('INSERT INTO posts (username, content) VALUES ($1, $2) RETURNING id', [req.user.username, content]);
+    if (image) await db.query('INSERT INTO post_images (post_id, mime, data) VALUES ($1, $2, $3)', [inserted.rows[0].id, image.mime, image.data]);
+    return inserted.rows[0].id;
+  });
+
+  const post = await getPost(pool, id, req.user.username);
   broadcast('post:new', { ...post, liked_by_me: false, reposted_by_me: false });
   checkByUsername(req.user.username);
   res.json(post);
+});
+
+// Картинка поста открыта всем (как и сам пост) — поэтому её можно ставить прямо в <img src>.
+router.get('/:id/image', async (req, res) => {
+  const { rows } = await pool.query('SELECT mime, data FROM post_images WHERE post_id = $1', [Number(req.params.id) || 0]);
+  if (!rows.length) throw new HttpError(404, 'Фото не найдено');
+  res.set({ 'Content-Type': rows[0].mime, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff' });
+  res.send(rows[0].data);
 });
 
 router.delete('/:id', requireAuth, async (req, res) => {

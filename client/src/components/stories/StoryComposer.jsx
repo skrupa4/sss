@@ -43,7 +43,7 @@ export default function StoryComposer({ open, onClose, onPublished }) {
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="group relative aspect-[9/16] w-48 overflow-hidden rounded-2xl border border-dashed border-white/20 bg-raised transition-colors hover:border-accent/60"
+          className="group relative aspect-[9/16] w-48 overflow-hidden rounded-2xl border border-dashed border-ink/20 bg-raised transition-colors hover:border-accent/60"
           aria-label="Выбрать картинку"
         >
           {image ? (

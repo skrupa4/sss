@@ -99,7 +99,7 @@ export default function VerificationRequest() {
         {req?.status === 'rejected' && (
           <p className="mb-2 text-sm text-muted">Прошлая заявка отклонена{req.admin_note ? `: «${req.admin_note}»` : '.'} Можно подать новую.</p>
         )}
-        <button type="button" onClick={() => setOpen(true)} className="rounded-xl border border-line bg-white/[0.04] px-4 py-2 text-sm font-semibold transition-colors hover:bg-white/10">
+        <button type="button" onClick={() => setOpen(true)} className="rounded-xl border border-line bg-ink/[0.04] px-4 py-2 text-sm font-semibold transition-colors hover:bg-ink/10">
           Запросить галочку
         </button>
       </>

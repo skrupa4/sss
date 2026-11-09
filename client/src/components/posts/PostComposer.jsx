@@ -3,6 +3,8 @@ import { api } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import Avatar from '../ui/Avatar';
 import EmojiPicker from '../ui/EmojiPicker';
+import Icon from '../ui/Icons';
+import { fileToPhotoDataUrl } from '../../utils/image';
 import { insertAtCursor } from '../../utils/text';
 
 const MAX = 500;
@@ -12,20 +14,35 @@ export default function PostComposer({ onPublished }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [image, setImage] = useState(null); // data-URL выбранного фото
   const ref = useRef(null);
+  const fileRef = useRef(null);
 
   const publish = async () => {
-    if (!text.trim() || busy) return;
+    if ((!text.trim() && !image) || busy) return;
     setBusy(true);
     setError('');
     try {
-      const post = await api.post('/api/posts', { content: text });
+      const post = await api.post('/api/posts', { content: text, image });
       setText('');
+      setImage(null);
       onPublished?.(post);
     } catch (err) {
       setError(err.message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const pickPhoto = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // чтобы можно было выбрать тот же файл ещё раз
+    if (!file) return;
+    setError('');
+    try {
+      setImage(await fileToPhotoDataUrl(file));
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -41,19 +58,31 @@ export default function PostComposer({ onPublished }) {
           onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) publish(); }}
           placeholder="Что нового?"
           rows={3}
-          className="min-h-[72px] flex-1 resize-none bg-transparent py-1 text-[15px] text-ink outline-none placeholder:text-faint"
+          className="min-h-[72px] flex-1 resize-none bg-transparent py-1 text-[15px] text-ink outline-none max-md:text-base placeholder:text-faint"
         />
       </div>
+      {image && (
+        <div className="relative mt-3 inline-block max-w-full">
+          <img src={image} alt="Выбранное фото" className="max-h-64 max-w-full rounded-xl border border-line object-contain" />
+          <button type="button" onClick={() => setImage(null)} aria-label="Убрать фото" className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-white hover:bg-black">✕</button>
+        </div>
+      )}
       {error && <p className="mt-2 text-sm text-accent" role="alert">{error}</p>}
       <div className="mt-3 flex items-center justify-between gap-3">
-        <EmojiPicker onPick={(emoji) => insertAtCursor(ref.current, text, emoji, setText)} />
+        <div className="flex items-center gap-1">
+          <EmojiPicker onPick={(emoji) => insertAtCursor(ref.current, text, emoji, setText)} />
+          <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/*" className="hidden" onChange={pickPhoto} />
+          <button type="button" onClick={() => fileRef.current?.click()} aria-label="Добавить фото" title="Добавить фото" className="rounded-lg p-2 text-muted transition-colors hover:bg-ink/[0.06] hover:text-ink">
+            <Icon name="image" className="h-5 w-5" />
+          </button>
+        </div>
         <div className="flex items-center gap-3">
           {text.length > MAX - 80 && <span className="text-xs text-muted">{MAX - text.length}</span>}
           <button
             type="button"
             onClick={publish}
-            disabled={!text.trim() || busy}
-            className="rounded-xl bg-ink px-5 py-2 text-sm font-semibold text-bg transition hover:bg-white disabled:opacity-40"
+            disabled={(!text.trim() && !image) || busy}
+            className="rounded-xl bg-ink px-5 py-2 text-sm font-semibold text-bg transition hover:opacity-85 disabled:opacity-40"
           >
             {busy ? 'Публикуем…' : 'Опубликовать'}
           </button>

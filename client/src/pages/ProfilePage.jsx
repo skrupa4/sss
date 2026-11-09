@@ -58,7 +58,7 @@ export default function ProfilePage({ username }) {
             role="tab"
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
-            className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition-colors ${tab === t.id ? 'bg-white/10 text-ink' : 'text-muted hover:text-ink'}`}
+            className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition-colors ${tab === t.id ? 'bg-ink/10 text-ink' : 'text-muted hover:text-ink'}`}
           >
             {t.label}
           </button>

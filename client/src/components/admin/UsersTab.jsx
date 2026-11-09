@@ -16,7 +16,7 @@ const PREMIUM_DAYS = [7, 30, 90, 365];
 function UserRow({ u, busy, onAction }) {
   const [days, setDays] = useState(30);
   const [coins, setCoins] = useState('');
-  const btn = 'rounded-lg border border-line px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-white/[0.06] disabled:opacity-50';
+  const btn = 'rounded-lg border border-line px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-ink/[0.06] disabled:opacity-50';
   return (
     <li className="rounded-2xl border border-line bg-surface p-4">
       <div className="flex items-center gap-3">

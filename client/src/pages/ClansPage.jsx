@@ -61,7 +61,7 @@ export default function ClansPage() {
       <ul className="flex flex-col gap-2">
         {clans?.map((clan) => (
           <li key={clan.id}>
-            <a href={`#${clanPath(clan.id)}`} className="flex items-center gap-4 rounded-2xl border border-line bg-surface p-4 transition-colors hover:bg-white/[0.03]">
+            <a href={`#${clanPath(clan.id)}`} className="flex items-center gap-4 rounded-2xl border border-line bg-surface p-4 transition-colors hover:bg-ink/[0.03]">
               <ClanAvatar id={clan.id} tag={clan.tag} version={clan.avatar_version} size={52} />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold">{clan.name}</p>

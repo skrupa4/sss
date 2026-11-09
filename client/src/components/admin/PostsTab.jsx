@@ -37,7 +37,7 @@ export default function PostsTab() {
               </p>
               <p className="mt-1.5 whitespace-pre-wrap text-sm text-ink/90">{p.content}</p>
             </div>
-            <button type="button" disabled={busyId === p.id} onClick={() => remove(p)} aria-label="Удалить пост" className="rounded-lg p-2 text-faint transition-colors hover:bg-white/[0.06] hover:text-accent disabled:opacity-50">
+            <button type="button" disabled={busyId === p.id} onClick={() => remove(p)} aria-label="Удалить пост" className="rounded-lg p-2 text-faint transition-colors hover:bg-ink/[0.06] hover:text-accent disabled:opacity-50">
               <Icon name="trash" className="h-[18px] w-[18px]" />
             </button>
           </li>

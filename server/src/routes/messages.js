@@ -6,6 +6,7 @@ const { HttpError } = require('../utils/errors');
 const { validateText } = require('../utils/validate');
 const { nickColumns } = require('../services/users');
 const { checkAchievements } = require('../services/achievements');
+const { sendPushToUsername } = require('../services/push');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -29,6 +30,11 @@ router.post('/', async (req, res) => {
   await emitToUsername(receiver, 'message:new', message);
   await emitToUsername(sender, 'message:new', message);
   await pushCounters(receiver);
+  sendPushToUsername(receiver, {
+    title: `@${sender}`,
+    body: content.length > 120 ? `${content.slice(0, 120)}…` : content,
+    url: `#/messages/${encodeURIComponent(sender)}`,
+  });
   checkAchievements(req.user.id);
   res.json(message);
 });

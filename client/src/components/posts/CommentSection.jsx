@@ -77,7 +77,7 @@ export default function CommentSection({ postId }) {
           placeholder="Написать комментарий…"
           className="input h-10 py-0"
         />
-        <button type="button" onClick={send} disabled={!text.trim() || busy} className="h-10 rounded-xl bg-ink px-4 text-sm font-semibold text-bg hover:bg-white disabled:opacity-40">
+        <button type="button" onClick={send} disabled={!text.trim() || busy} className="h-10 rounded-xl bg-ink px-4 text-sm font-semibold text-bg hover:opacity-85 disabled:opacity-40">
           Ок
         </button>
       </div>

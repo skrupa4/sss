@@ -36,7 +36,7 @@ export default function AdminPage() {
             role="tab"
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
-            className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${tab === t.id ? 'bg-white/10 text-ink' : 'text-muted hover:text-ink'}`}
+            className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${tab === t.id ? 'bg-ink/10 text-ink' : 'text-muted hover:text-ink'}`}
           >
             {t.label}
           </button>

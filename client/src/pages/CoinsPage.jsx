@@ -7,7 +7,7 @@ import { timeAgo } from '../utils/format';
 import { ErrorState, Spinner } from '../components/ui/Spinner';
 
 const STATUS_LABEL = { pending: 'Ждёт оплаты', paid: 'Оплачен', canceled: 'Отменён', failed: 'Ошибка' };
-const STATUS_STYLE = { paid: 'text-ok', pending: 'text-amber-300', canceled: 'text-muted', failed: 'text-red-400' };
+const STATUS_STYLE = { paid: 'text-ok', pending: 'text-gold', canceled: 'text-muted', failed: 'text-red-400' };
 
 const orderFromHash = () => new URLSearchParams(window.location.hash.split('?')[1] || '').get('order');
 
@@ -94,13 +94,13 @@ export default function CoinsPage() {
           Монеты можно тратить на подарки друзьям. Их дают за достижения — или можно докупить за рубли.
           {' '}<a href={`#/profile/${encodeURIComponent(user.username)}`} className="text-accent hover:underline">Мои достижения</a>
         </p>
-        {checking && <p className="mt-3 text-sm text-amber-300">Проверяем оплату…</p>}
+        {checking && <p className="mt-3 text-sm text-gold">Проверяем оплату…</p>}
       </section>
 
       <section className="rounded-2xl border border-line bg-surface p-5">
         <h2 className="text-lg font-bold tracking-tight">Пополнить баланс</h2>
         {!data.enabled && (
-          <p className="mt-2 rounded-xl bg-amber-400/10 px-3 py-2 text-sm text-amber-300">Оплата пока не подключена — скоро заработает.</p>
+          <p className="mt-2 rounded-xl bg-amber-400/10 px-3 py-2 text-sm text-gold">Оплата пока не подключена — скоро заработает.</p>
         )}
         <ul className="mt-4 grid grid-cols-2 gap-2.5 md:grid-cols-3">
           {data.packs.map((p) => (
@@ -109,10 +109,10 @@ export default function CoinsPage() {
                 type="button"
                 disabled={!data.enabled || buying !== null}
                 onClick={() => buy(p)}
-                className="flex w-full flex-col items-center gap-1 rounded-2xl border border-line bg-raised/60 px-3 py-4 transition-all hover:-translate-y-0.5 hover:border-amber-400/50 hover:bg-white/[0.06] disabled:opacity-50 disabled:hover:translate-y-0"
+                className="flex w-full flex-col items-center gap-1 rounded-2xl border border-line bg-raised/60 px-3 py-4 transition-all hover:-translate-y-0.5 hover:border-amber-400/50 hover:bg-ink/[0.06] disabled:opacity-50 disabled:hover:translate-y-0"
               >
                 <span className="text-2xl font-extrabold tabular-nums">🪙 {p.coins}</span>
-                <span className="text-sm font-semibold text-amber-300">{buying === p.code ? 'Переходим к оплате…' : `${p.price_rub} ₽`}</span>
+                <span className="text-sm font-semibold text-gold">{buying === p.code ? 'Переходим к оплате…' : `${p.price_rub} ₽`}</span>
               </button>
             </li>
           ))}

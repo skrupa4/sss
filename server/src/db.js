@@ -188,6 +188,27 @@ const MIGRATIONS = [
      created_at TIMESTAMPTZ DEFAULT NOW()
    )`,
   `CREATE INDEX IF NOT EXISTS gifts_to_idx ON gifts_sent (to_user_id, created_at DESC)`,
+  `ALTER TABLE gifts_sent ADD COLUMN IF NOT EXISTS sold_at TIMESTAMPTZ`,
+  `ALTER TABLE gifts_sent ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN NOT NULL DEFAULT false`,
+  `CREATE TABLE IF NOT EXISTS post_images (
+     post_id INTEGER PRIMARY KEY REFERENCES posts(id) ON DELETE CASCADE,
+     mime TEXT NOT NULL,
+     data BYTEA NOT NULL
+   )`,
+  `CREATE TABLE IF NOT EXISTS push_subscriptions (
+     id SERIAL PRIMARY KEY,
+     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     endpoint TEXT NOT NULL UNIQUE,
+     created_at TIMESTAMPTZ DEFAULT NOW()
+   )`,
+  `CREATE INDEX IF NOT EXISTS push_subscriptions_user_idx ON push_subscriptions (user_id)`,
+  `CREATE TABLE IF NOT EXISTS push_outbox (
+     id SERIAL PRIMARY KEY,
+     sub_id INTEGER NOT NULL REFERENCES push_subscriptions(id) ON DELETE CASCADE,
+     payload TEXT NOT NULL,
+     created_at TIMESTAMPTZ DEFAULT NOW()
+   )`,
+  `CREATE INDEX IF NOT EXISTS push_outbox_sub_idx ON push_outbox (sub_id, id)`,
   `CREATE TABLE IF NOT EXISTS coin_orders (
      id SERIAL PRIMARY KEY,
      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,

@@ -14,7 +14,7 @@ export default function MessagesPage({ peer }) {
   useSocketEvent('message:new', () => reload());
 
   return (
-    <div className="flex h-[calc(100vh-7.5rem)] min-h-[420px] overflow-hidden rounded-3xl border border-line bg-surface lg:h-[calc(100vh-3rem)]">
+    <div className="flex h-[calc(100dvh-11rem)] min-h-[360px] overflow-hidden rounded-3xl border border-line bg-surface lg:h-[calc(100dvh-3rem)]">
       <section className={`flex w-full flex-col border-line md:w-80 md:shrink-0 md:border-r ${peer ? 'hidden md:flex' : 'flex'}`}>
         <h1 className="flex h-16 shrink-0 items-center border-b border-line px-4 text-xl font-extrabold tracking-tight">Сообщения</h1>
         <ChatList chats={chats} loading={loading} activeUsername={peer} />

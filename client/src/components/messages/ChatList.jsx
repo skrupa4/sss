@@ -19,7 +19,7 @@ export default function ChatList({ chats, loading, activeUsername }) {
           type="button"
           onClick={() => navigate(messagesPath(chat.username))}
           className={`flex w-full items-center gap-3 rounded-xl p-3 text-left transition-colors ${
-            activeUsername === chat.username ? 'bg-white/[0.07]' : 'hover:bg-white/[0.04]'
+            activeUsername === chat.username ? 'bg-ink/[0.07]' : 'hover:bg-ink/[0.04]'
           }`}
         >
           <Avatar username={chat.username} version={chat.avatar_version} size={44} />

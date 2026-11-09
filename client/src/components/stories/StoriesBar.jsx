@@ -20,7 +20,7 @@ function Ring({ group, label, onClick, children, plus, onPlus }) {
           type="button"
           onClick={onClick}
           aria-label={label}
-          className={`rounded-full p-[3px] transition-transform active:scale-95 ${gradient ? 'bg-gradient-to-tr from-accent via-fuchsia-500 to-accent-2' : 'bg-white/15'}`}
+          className={`rounded-full p-[3px] transition-transform active:scale-95 ${gradient ? 'bg-gradient-to-tr from-accent via-fuchsia-500 to-accent-2' : 'bg-ink/15'}`}
         >
           <span className="block rounded-full border-[3px] border-bg">{children}</span>
         </button>

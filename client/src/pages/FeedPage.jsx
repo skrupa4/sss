@@ -31,7 +31,7 @@ export default function FeedPage({ mode = 'all' }) {
             href={`#${t.href}`}
             role="tab"
             aria-selected={mode === t.id}
-            className={`flex-1 rounded-xl py-2.5 text-center text-sm font-semibold transition-colors ${mode === t.id ? 'bg-white/10 text-ink' : 'text-muted hover:text-ink'}`}
+            className={`flex-1 rounded-xl py-2.5 text-center text-sm font-semibold transition-colors ${mode === t.id ? 'bg-ink/10 text-ink' : 'text-muted hover:text-ink'}`}
           >
             {t.label}
           </a>

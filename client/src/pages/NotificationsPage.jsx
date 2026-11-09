@@ -37,7 +37,7 @@ export default function NotificationsPage() {
         {items?.length > 0 && (
           <div className="flex gap-2">
             {counters.notifications > 0 && (
-              <button type="button" onClick={markAllRead} className="rounded-xl bg-white/[0.06] px-3 py-1.5 text-sm font-semibold hover:bg-white/10">
+              <button type="button" onClick={markAllRead} className="rounded-xl bg-ink/[0.06] px-3 py-1.5 text-sm font-semibold hover:bg-ink/10">
                 Прочитать все
               </button>
             )}
@@ -58,7 +58,7 @@ export default function NotificationsPage() {
             <li key={n.id}>
               <a
                 href={n.type === 'gift_anon' ? '#/profile' : n.type === 'verification_request' ? '#/admin' : isSystemNotification(n) ? '#/notifications' : `#${profilePath(n.user_from)}`}
-                className={`flex items-start gap-3 p-4 transition-colors hover:bg-white/[0.03] ${n.is_read ? 'opacity-70' : 'bg-white/[0.03]'}`}
+                className={`flex items-start gap-3 p-4 transition-colors hover:bg-ink/[0.03] ${n.is_read ? 'opacity-70' : 'bg-ink/[0.03]'}`}
               >
                 {isSystemNotification(n) ? (
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400/25 to-accent/25 text-xl">

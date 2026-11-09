@@ -1,5 +1,6 @@
 const { pool } = require('../db');
 const { emitToUsername, pushCounters } = require('./realtime');
+const { sendPushToUsername, pushForNotification } = require('./push');
 
 // Для этих типов повторное уведомление от того же человека не создаём (лайк-анлайк-лайк).
 const UNIQUE_TYPES = new Set(['like', 'follow', 'repost', 'clan_join']);
@@ -28,6 +29,7 @@ async function createNotification(userTo, userFrom, type, postId = null, content
     );
     await emitToUsername(userTo, 'notification:new', full.rows[0]);
     await pushCounters(userTo);
+    sendPushToUsername(userTo, pushForNotification(full.rows[0])); // на телефон — не ждём ответа
   } catch (err) {
     console.error('Ошибка создания уведомления:', err.message);
   }

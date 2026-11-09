@@ -70,7 +70,7 @@ export default function ChatWindow({ peer, onRead }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex h-16 shrink-0 items-center gap-3 border-b border-line px-4">
-        <button type="button" onClick={() => navigate('/messages')} className="rounded-lg p-1.5 text-muted hover:bg-white/[0.06] hover:text-ink md:hidden" aria-label="Назад к чатам">
+        <button type="button" onClick={() => navigate('/messages')} className="rounded-lg p-1.5 text-muted hover:bg-ink/[0.06] hover:text-ink md:hidden" aria-label="Назад к чатам">
           <Icon name="back" className="h-5 w-5" />
         </button>
         <a href={`#${profilePath(peer)}`} className="flex min-w-0 items-center gap-3">

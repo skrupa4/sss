@@ -15,7 +15,7 @@ const FILTERS = [
 ];
 
 const STATUS = {
-  pending: ['на рассмотрении', 'bg-amber-400/10 text-amber-300'],
+  pending: ['на рассмотрении', 'bg-amber-400/10 text-gold'],
   approved: ['одобрена', 'bg-ok/10 text-ok'],
   rejected: ['отклонена', 'bg-red-500/10 text-red-400'],
 };
@@ -89,7 +89,7 @@ export default function VerificationsTab() {
       <div className="flex gap-1 overflow-x-auto" role="tablist">
         {FILTERS.map((f) => (
           <button key={f.id} type="button" role="tab" aria-selected={filter === f.id} onClick={() => setFilter(f.id)}
-            className={`shrink-0 rounded-xl px-3.5 py-2 text-sm font-semibold transition-colors ${filter === f.id ? 'bg-white/10 text-ink' : 'text-muted hover:text-ink'}`}>
+            className={`shrink-0 rounded-xl px-3.5 py-2 text-sm font-semibold transition-colors ${filter === f.id ? 'bg-ink/10 text-ink' : 'text-muted hover:text-ink'}`}>
             {f.label}
           </button>
         ))}

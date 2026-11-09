@@ -10,7 +10,7 @@ export default function ClansTab() {
   const confirm = useConfirm();
   const { data: clans, loading, error, reload } = useAsync(() => api.get('/api/admin/clans'), []);
   const { run, busyId } = useAdminAction(reload);
-  const btn = 'rounded-lg border border-line px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-white/[0.06] disabled:opacity-50';
+  const btn = 'rounded-lg border border-line px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-ink/[0.06] disabled:opacity-50';
 
   const disband = async (clan) => {
     const ok = await confirm({ title: 'Распустить клан?', message: `Клан «${clan.name}» будет удалён, участники останутся без клана.`, confirmLabel: 'Распустить', danger: true });

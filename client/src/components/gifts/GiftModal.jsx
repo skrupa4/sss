@@ -46,12 +46,12 @@ function GiftPicker({ toUser, onClose }) {
               onClick={() => setSelected(g.code)}
               aria-pressed={selected === g.code}
               className={`flex w-full flex-col items-center gap-1 rounded-2xl border px-2 py-3 transition-all ${
-                selected === g.code ? 'border-accent bg-accent/10 scale-[1.03]' : 'border-line bg-raised/60 hover:bg-white/[0.06]'
+                selected === g.code ? 'border-accent bg-accent/10 scale-[1.03]' : 'border-line bg-raised/60 hover:bg-ink/[0.06]'
               }`}
             >
               <span className="text-3xl leading-none">{g.icon}</span>
               <span className="mt-1 text-xs font-medium">{g.title}</span>
-              <span className="text-xs tabular-nums text-amber-300">🪙 {g.price}</span>
+              <span className="text-xs tabular-nums text-gold">🪙 {g.price}</span>
             </button>
           </li>
         ))}
@@ -69,7 +69,7 @@ function GiftPicker({ toUser, onClose }) {
       {sendError && <p className="text-sm text-accent" role="alert">{sendError}</p>}
 
       <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
-        <p className="text-sm text-muted">Ваш баланс: <b className="tabular-nums text-amber-300">🪙 {data.coins}</b></p>
+        <p className="text-sm text-muted">Ваш баланс: <b className="tabular-nums text-gold">🪙 {data.coins}</b></p>
         {notEnough ? (
           <a href="#/coins" onClick={onClose} className="rounded-xl bg-amber-400 px-5 py-2.5 text-sm font-semibold text-black transition hover:brightness-110">
             Пополнить монеты

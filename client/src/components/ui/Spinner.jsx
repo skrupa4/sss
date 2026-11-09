@@ -12,7 +12,7 @@ export function ErrorState({ error, onRetry }) {
     <div className="rounded-2xl border border-line bg-surface p-8 text-center">
       <p className="text-sm text-muted">{error?.message || 'Что-то пошло не так'}</p>
       {onRetry && (
-        <button type="button" onClick={onRetry} className="mt-4 rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-bg hover:bg-white">
+        <button type="button" onClick={onRetry} className="mt-4 rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-bg hover:opacity-85">
           Повторить
         </button>
       )}

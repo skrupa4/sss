@@ -6,6 +6,7 @@ const { checkAchievements } = require('../services/achievements');
 const { broadcast } = require('../services/realtime');
 const { addCoins } = require('../services/coins');
 const { createNotification } = require('../services/notifications');
+const { sendPushToUsername } = require('../services/push');
 const { HttpError } = require('../utils/errors');
 const { str, validateText } = require('../utils/validate');
 
@@ -234,6 +235,8 @@ router.post('/announce', async (req, res) => {
     [text]
   );
   broadcast('announcement', { content: text });
+  const devices = await pool.query('SELECT DISTINCT u.username FROM push_subscriptions s JOIN users u ON u.id = s.user_id WHERE NOT u.is_banned');
+  for (const d of devices.rows) sendPushToUsername(d.username, { title: 'SSS', body: text, url: '#/notifications' });
   res.json({ success: true, recipients: rowCount });
 });
 

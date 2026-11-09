@@ -71,7 +71,7 @@ export default function ProfileHeader({ profile, isOwn, achievementsCount, onCha
           <div className="flex flex-wrap justify-center gap-2">
             {isOwn ? (
               !editing && (
-                <button type="button" onClick={() => setEditing(true)} className="flex items-center gap-2 rounded-xl border border-line bg-white/[0.04] px-4 py-2 text-sm font-semibold transition-colors hover:bg-white/10">
+                <button type="button" onClick={() => setEditing(true)} className="flex items-center gap-2 rounded-xl border border-line bg-ink/[0.04] px-4 py-2 text-sm font-semibold transition-colors hover:bg-ink/10">
                   <Icon name="edit" className="h-4 w-4" /> Редактировать
                 </button>
               )
@@ -82,15 +82,15 @@ export default function ProfileHeader({ profile, isOwn, achievementsCount, onCha
                   onClick={toggleFollow}
                   disabled={busy}
                   className={`rounded-xl px-5 py-2 text-sm font-semibold transition disabled:opacity-60 ${
-                    profile.is_subscribed ? 'border border-line bg-white/[0.04] hover:bg-white/10' : 'bg-accent text-white hover:brightness-110'
+                    profile.is_subscribed ? 'border border-line bg-ink/[0.04] hover:bg-ink/10' : 'bg-accent text-white hover:brightness-110'
                   }`}
                 >
                   {profile.is_subscribed ? 'Отписаться' : 'Подписаться'}
                 </button>
-                <button type="button" onClick={() => navigate(messagesPath(profile.username))} className="flex items-center gap-2 rounded-xl border border-line bg-white/[0.04] px-4 py-2 text-sm font-semibold transition-colors hover:bg-white/10">
+                <button type="button" onClick={() => navigate(messagesPath(profile.username))} className="flex items-center gap-2 rounded-xl border border-line bg-ink/[0.04] px-4 py-2 text-sm font-semibold transition-colors hover:bg-ink/10">
                   <Icon name="chat" className="h-4 w-4" /> Написать
                 </button>
-                <button type="button" onClick={() => setGiftOpen(true)} className="flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-300 transition-colors hover:bg-amber-400/20">
+                <button type="button" onClick={() => setGiftOpen(true)} className="flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-gold transition-colors hover:bg-amber-400/20">
                   <Icon name="gift" className="h-4 w-4" /> Подарить
                 </button>
               </>
@@ -117,7 +117,7 @@ export default function ProfileHeader({ profile, isOwn, achievementsCount, onCha
               </h1>
               {profile.is_verified && <VerifiedBadge className="h-5 w-5" />}
               {profile.is_premium && (
-                <span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-amber-400/20 to-orange-500/20 px-1.5 py-0.5 text-[11px] font-semibold text-amber-300" title="Premium">
+                <span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-amber-400/20 to-orange-500/20 px-1.5 py-0.5 text-[11px] font-semibold text-gold" title="Premium">
                   <Icon name="crown" className="h-3 w-3" fill="currentColor" strokeWidth={1.5} /> Premium
                 </span>
               )}

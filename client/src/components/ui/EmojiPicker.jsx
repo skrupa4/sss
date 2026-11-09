@@ -19,7 +19,7 @@ export default function EmojiPicker({ onPick }) {
       {open && (
         <div className="pop-in scroll-thin absolute bottom-full left-0 z-20 mb-2 grid max-h-44 w-64 grid-cols-7 gap-1 overflow-y-auto rounded-2xl border border-line bg-raised p-2 shadow-2xl">
           {EMOJIS.map((emoji) => (
-            <button key={emoji} type="button" onClick={() => onPick(emoji)} className="rounded-lg p-1 text-xl hover:bg-white/10">
+            <button key={emoji} type="button" onClick={() => onPick(emoji)} className="rounded-lg p-1 text-xl hover:bg-ink/10">
               {emoji}
             </button>
           ))}
